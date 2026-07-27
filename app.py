@@ -18,6 +18,18 @@ st.set_page_config(
     initial_sidebar_state="expanded",
 )
 
+# Hide Streamlit Chrome / Manage App Button / Footer
+hide_streamlit_style = """
+<style>
+[data-testid="stToolbar"] {visibility: hidden !important;}
+#MainMenu {visibility: hidden !important;}
+footer {visibility: hidden !important;}
+header {visibility: hidden !important;}
+.viewerBadge_link__1S13V {display: none !important;}
+</style>
+"""
+st.markdown(hide_streamlit_style, unsafe_allow_html=True)
+
 # 2. Authentication Gatekeeper (Shows login screen and halts if unauthenticated)
 if not check_auth():
     st.stop()
@@ -164,7 +176,7 @@ def render_top_header():
     </html>
     """
 
-    components.html(header_component_html, height=95)
+    st.iframe(header_component_html, height=95)
 
 render_top_header()
 
@@ -219,4 +231,4 @@ recent_logs = fetch_facility_logs(limit=15)
 if recent_logs.empty:
     st.info("No telemetry logs available.")
 else:
-    st.dataframe(recent_logs, use_container_width=True, hide_index=True)
+    st.dataframe(recent_logs, width='stretch', hide_index=True)

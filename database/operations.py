@@ -2,7 +2,7 @@
 COLEXA BIOSENSOR - HVAC Monitoring Platform
 Isolated database query execution handlers (CRUD).
 
-All queries use parameterized (`?`) placeholders. Every public function
+All queries use parameterized (?) placeholders. Every public function
 wraps its connection lifecycle in try/except/finally so a database fault
 never crashes the Streamlit UI.
 """
@@ -21,45 +21,7 @@ from database.schema import get_connection, _log_exception
 # Audit trail
 # ---------------------------------------------------------------------------
 
-def write_audit_entry(
-    username: str, 
-    action: str, 
-    table_name: str = "", 
-    record_id: int | None = None, 
-    detail: str = ""
-) -> bool:
-    """Append an immutable audit trail record.
-
-    Args:
-        username: Operator/user performing the action.
-        action: Short verb phrase, e.g. "INSERT", "EXPORT_PDF", "DELETE_RANGE".
-        table_name: Name of the table affected, if applicable.
-        record_id: Primary key of the affected record, if applicable.
-        detail: Free-text description of the action for traceability.
-
-    Returns:
-        True on success, False on failure.
-    """
-    connection: sqlite3.Connection | None = None
-    try:
-        connection = get_connection()
-        connection.execute(
-            """
-            INSERT INTO audit_trail (timestamp, username, action, table_name, record_id, detail)
-            VALUES (?, ?, ?, ?, ?, ?)
-            """,
-            (datetime.now().isoformat(timespec="seconds"), username, action, table_name, record_id, detail),
-        )
-        connection.commit()
-        return True
-    except sqlite3.Error as exc:
-        _log_exception("write_audit_entry", exc)
-        return False
-    finally:
-        if connection is not None:
-            connection.close()
-
-
+@st.cache_data(ttl=60)
 def fetch_audit_trail(limit: int = 1000) -> pd.DataFrame:
     """Retrieve the immutable audit trail, most recent first."""
     return _fetch_table("audit_trail", limit)
@@ -107,6 +69,7 @@ def insert_facility_log(entry: dict[str, Any]) -> int | None:
         connection.commit()
         new_id: int = cursor.lastrowid
         write_audit_entry(entry.get("operator_id", "unknown"), "INSERT", "facility_logs", new_id, "Shift telemetry recorded")
+        _clear_streamlit_cache()
         return new_id
     except sqlite3.Error as exc:
         _log_exception("insert_facility_log", exc)
@@ -116,6 +79,7 @@ def insert_facility_log(entry: dict[str, Any]) -> int | None:
             connection.close()
 
 
+@st.cache_data(ttl=60)
 def fetch_facility_logs(limit: int = 500) -> pd.DataFrame:
     """Retrieve the most recent facility_logs rows as a DataFrame."""
     connection: sqlite3.Connection | None = None
@@ -170,6 +134,7 @@ def insert_deviation(entry: dict[str, Any]) -> int | None:
         connection.commit()
         new_id: int = cursor.lastrowid
         write_audit_entry(entry.get("operator_id", "unknown"), "INSERT", "deviation_logs", new_id, f"Deviation logged: {entry.get('parameter')}")
+        _clear_streamlit_cache()
         return new_id
     except sqlite3.Error as exc:
         _log_exception("insert_deviation", exc)
@@ -179,6 +144,7 @@ def insert_deviation(entry: dict[str, Any]) -> int | None:
             connection.close()
 
 
+@st.cache_data(ttl=60)
 def fetch_deviations(limit: int = 500, status_filter: str | None = None) -> pd.DataFrame:
     """Retrieve deviation_logs rows, optionally filtered by CAPA status."""
     connection: sqlite3.Connection | None = None
@@ -216,6 +182,7 @@ def update_capa_status(deviation_id: int, new_status: str, username: str) -> boo
         )
         connection.commit()
         write_audit_entry(username, "UPDATE", "deviation_logs", deviation_id, f"CAPA status changed to {new_status}")
+        _clear_streamlit_cache()
         return True
     except sqlite3.Error as exc:
         _log_exception("update_capa_status", exc)
@@ -258,6 +225,7 @@ def insert_ahu_detail(entry: dict[str, Any]) -> int | None:
             ),
         )
         connection.commit()
+        _clear_streamlit_cache()
         return cursor.lastrowid
     except sqlite3.Error as exc:
         _log_exception("insert_ahu_detail", exc)
@@ -267,6 +235,7 @@ def insert_ahu_detail(entry: dict[str, Any]) -> int | None:
             connection.close()
 
 
+@st.cache_data(ttl=60)
 def fetch_ahu_details(limit: int = 500) -> pd.DataFrame:
     """Retrieve recent AHU detailed telemetry."""
     return _fetch_table("ahu_detailed_logs", limit)
@@ -299,6 +268,7 @@ def insert_dhu_detail(entry: dict[str, Any]) -> int | None:
             ),
         )
         connection.commit()
+        _clear_streamlit_cache()
         return cursor.lastrowid
     except sqlite3.Error as exc:
         _log_exception("insert_dhu_detail", exc)
@@ -308,6 +278,7 @@ def insert_dhu_detail(entry: dict[str, Any]) -> int | None:
             connection.close()
 
 
+@st.cache_data(ttl=60)
 def fetch_dhu_details(limit: int = 500) -> pd.DataFrame:
     """Retrieve recent DHU detailed telemetry."""
     return _fetch_table("dhu_detailed_logs", limit)
@@ -337,6 +308,7 @@ def insert_compressor_log(entry: dict[str, Any]) -> int | None:
             ),
         )
         connection.commit()
+        _clear_streamlit_cache()
         return cursor.lastrowid
     except sqlite3.Error as exc:
         _log_exception("insert_compressor_log", exc)
@@ -346,11 +318,13 @@ def insert_compressor_log(entry: dict[str, Any]) -> int | None:
             connection.close()
 
 
+@st.cache_data(ttl=60)
 def fetch_compressor_logs(limit: int = 500) -> pd.DataFrame:
     """Retrieve recent air compressor telemetry."""
     return _fetch_table("compressor_logs", limit)
 
 
+@st.cache_data(ttl=60)
 def _fetch_table(table_name: str, limit: int) -> pd.DataFrame:
     """Shared helper to safely SELECT * from a known, hardcoded table name."""
     allowed_tables: set[str] = {
@@ -374,6 +348,7 @@ def _fetch_table(table_name: str, limit: int) -> pd.DataFrame:
             connection.close()
 
 
+@st.cache_data(ttl=60)
 def compute_kpis() -> dict[str, Any]:
     """Compute headline KPIs for the executive dashboard."""
     connection: sqlite3.Connection | None = None
@@ -427,17 +402,7 @@ def delete_telemetry_by_date_range(
     tables: list[str] | None = None, 
     username: str = "Admin"
 ) -> tuple[bool, int]:
-    """Deletes records across specified telemetry tables within a date range [start_date, end_date].
-
-    Args:
-        start_date: YYYY-MM-DD formatted string.
-        end_date: YYYY-MM-DD formatted string.
-        tables: List of table names to delete from.
-        username: Operator performing action.
-
-    Returns:
-        Tuple of (success_boolean, total_rows_deleted)
-    """
+    """Deletes records across specified telemetry tables within a date range [start_date, end_date]."""
     connection: sqlite3.Connection | None = None
     allowed_tables = {
         "facility_logs", "deviation_logs", "ahu_detailed_logs", 
@@ -452,7 +417,6 @@ def delete_telemetry_by_date_range(
     try:
         connection = get_connection()
         for table in target_tables:
-            # Check if table exists prior to deletion attempt
             table_check = connection.execute(
                 "SELECT name FROM sqlite_master WHERE type='table' AND name=?", (table,)
             ).fetchone()
@@ -473,7 +437,6 @@ def delete_telemetry_by_date_range(
             
         connection.commit()
         
-        # Log event in audit trail
         write_audit_entry(
             username=username,
             action="DELETE_RANGE",
@@ -526,24 +489,13 @@ def delete_record_by_id(table_name: str, record_id: int, username: str = "Admin"
 
 
 def reset_all_telemetry_data(username: str = "Admin") -> bool:
-    """Wipes all telemetry data from the database (Development/Admin use).
-    
-    Returns:
-        True on success, False on failure.
-    """
+    """Wipes all telemetry data from the database (Development/Admin use)."""
     connection: sqlite3.Connection | None = None
     try:
         connection = get_connection()
-        
-        # Exact list of active tables logging data
         tables = [
-            "facility_logs", 
-            "deviation_logs", 
-            "ahu_detailed_logs", 
-            "dhu_detailed_logs", 
-            "compressor_logs", 
-            "panel_logs", 
-            "audit_trail"
+            "facility_logs", "deviation_logs", "ahu_detailed_logs", 
+            "dhu_detailed_logs", "compressor_logs", "panel_logs", "audit_trail"
         ]
         
         for table in tables:
@@ -551,7 +503,6 @@ def reset_all_telemetry_data(username: str = "Admin") -> bool:
             
         connection.commit()
         
-        # Safe VACUUM execution (executed outside an active transaction)
         try:
             connection.isolation_level = None
             connection.execute("VACUUM")
@@ -560,7 +511,6 @@ def reset_all_telemetry_data(username: str = "Admin") -> bool:
         finally:
             connection.isolation_level = ""
         
-        # Log fresh reset event in cleared audit trail
         write_audit_entry(
             username=username,
             action="FULL_RESET",

@@ -36,6 +36,12 @@ def insert_facility_log(entry: dict[str, Any]) -> int | None:
     connection: sqlite3.Connection | None = None
     try:
         connection = get_connection()
+        
+        # Ensure shift_date defaults to today's date if omitted
+        shift_date = entry.get("shift_date")
+        if not shift_date:
+            shift_date = datetime.now().strftime("%Y-%m-%d")
+
         cursor = connection.execute(
             """
             INSERT INTO facility_logs (
@@ -47,8 +53,8 @@ def insert_facility_log(entry: dict[str, Any]) -> int | None:
             """,
             (
                 entry.get("timestamp", datetime.now().isoformat(timespec="seconds")),
-                entry.get("shift_date"),
-                entry.get("shift_time"),
+                shift_date,
+                entry.get("shift_time", datetime.now().strftime("%H:%M")),
                 entry.get("ahu_temperature"),
                 entry.get("ahu_rh"),
                 entry.get("dhu1_rh"),

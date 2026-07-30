@@ -18,7 +18,7 @@ st.set_page_config(
     initial_sidebar_state="expanded",
 )
 
-# Hide Streamlit Chrome / Manage App Button / Footer / Viewer Badge (Excluding Sidebar Navigation Controls)
+# Safely hide the hamburger menu, deployment decoration, footer, and status widgets without breaking the sidebar control
 hide_streamlit_style = """
 <style>
 #MainMenu {visibility: hidden !important;}
@@ -29,8 +29,9 @@ footer {visibility: hidden !important;}
 .viewerBadge_link__1S13V {display: none !important;}
 div[class*="viewerBadge"] {display: none !important;}
 
-/* Explicitly keep sidebar navigation and collapse button visible */
-[data-testid="stSidebarNav"] {
+/* Ensure header container and sidebar controls remain interactive and visible */
+header[data-testid="stHeader"] {
+    background: transparent !important;
     visibility: visible !important;
 }
 [data-testid="collapsedControl"] {

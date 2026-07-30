@@ -18,17 +18,25 @@ st.set_page_config(
     initial_sidebar_state="expanded",
 )
 
-# Hide Streamlit Chrome / Manage App Button / Footer / Viewer Badge
+# Hide Streamlit Chrome / Manage App Button / Footer / Viewer Badge (Excluding Sidebar Navigation Controls)
 hide_streamlit_style = """
 <style>
 #MainMenu {visibility: hidden !important;}
 [data-testid="stToolbar"] {visibility: hidden !important;}
 [data-testid="stDecoration"] {visibility: hidden !important;}
 [data-testid="stStatusWidget"] {visibility: hidden !important;}
-header {visibility: hidden !important;}
 footer {visibility: hidden !important;}
 .viewerBadge_link__1S13V {display: none !important;}
 div[class*="viewerBadge"] {display: none !important;}
+
+/* Explicitly keep sidebar navigation and collapse button visible */
+[data-testid="stSidebarNav"] {
+    visibility: visible !important;
+}
+[data-testid="collapsedControl"] {
+    display: block !important;
+    visibility: visible !important;
+}
 </style>
 """
 st.markdown(hide_streamlit_style, unsafe_allow_html=True)

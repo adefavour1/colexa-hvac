@@ -8,4 +8,4 @@ font = "sans serif"
 
 [client]
 showErrorDetails = false
-toolbarMode = "viewer"
+toolbarMode = "auto"

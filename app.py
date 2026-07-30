@@ -18,7 +18,7 @@ st.set_page_config(
     initial_sidebar_state="expanded",
 )
 
-# Safely hide the hamburger menu, deployment decoration, footer, and status widgets without breaking the sidebar control
+# Hide unnecessary toolbar icons and viewer items while ensuring the sidebar collapse control is clean and fully operational
 hide_streamlit_style = """
 <style>
 #MainMenu {visibility: hidden !important;}
@@ -29,10 +29,13 @@ footer {visibility: hidden !important;}
 .viewerBadge_link__1S13V {display: none !important;}
 div[class*="viewerBadge"] {display: none !important;}
 
-/* Ensure header container and sidebar controls remain interactive and visible */
+/* Target header elements specifically to leave only the sidebar control visible */
 header[data-testid="stHeader"] {
     background: transparent !important;
     visibility: visible !important;
+}
+header[data-testid="stHeader"] > div:first-child {
+    display: none !important;
 }
 [data-testid="collapsedControl"] {
     display: block !important;

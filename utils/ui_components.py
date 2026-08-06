@@ -32,7 +32,7 @@ COLOR_NOMINAL: str = "#C1F24D"
 
 PARAMETER_BOUNDS: dict[str, dict[str, object]] = {
     "ahu_temperature": {"label": "AHU Control Panel Temp", "unit": "°C", "low": 0.0, "high": 30.0, "sop": "CBL-MNT-02"},
-    "ahu_rh": {"label": "AHU Control Panel RH", "unit": "%", "low": 30, "high": 40, "sop": "CBL-MNT-02"},
+    "ahu_rh": {"label": "AHU Control Panel RH", "unit": "%", "low": 20, "high": 40, "sop": "CBL-MNT-02"},
     "dhu1_rh": {"label": "DHU-1 RH", "unit": "%", "low": 30.0, "high": 40.0, "sop": "CBL-MNT-05"},
     "dhu1_dpg": {"label": "DHU-1 DPG", "unit": "mmWC", "low": 2.5, "high": 25.0, "sop": "CBL-MNT-05"},
     "dhu2_rh": {"label": "DHU-2 RH", "unit": "%", "low": 30.0, "high": 40.0, "sop": "CBL-MNT-05"},

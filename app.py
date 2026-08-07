@@ -49,24 +49,18 @@ st.markdown(hide_streamlit_style, unsafe_allow_html=True)
 if not check_auth():
     st.stop()
 
+# ---------------------------------------------------------------------------
+# 3. AUTHENTICATED APPLICATION CODE
+# ---------------------------------------------------------------------------
+
+# Render the universal logout button on all page sidebars
+render_logout_sidebar()
+
 # Startup: ensure database schema exists
 if "db_ready" not in st.session_state:
     st.session_state["db_ready"] = initialize_database()
 
 inject_global_css()
-
-# Define explicit multi-page router containing app.py as the primary target for st.switch_page() routing
-pg = st.navigation([
-    st.Page("app.py", title="Executive Dashboard", icon="📊"),
-    st.Page("pages/1_AHU_Monitoring.py", title="AHU Monitoring", icon="❄️"),
-    st.Page("pages/2_Air_Compressor.py", title="Air Compressor", icon="🌀"),
-    st.Page("pages/3_DHU_Monitoring.py", title="DHU Monitoring", icon="💧"),
-    st.Page("pages/4_Executive_Dashboard.py", title="Executive Overview", icon="📈"),
-    st.Page("pages/5_RCA_and_CAPA.py", title="RCA & CAPA Engine", icon="🔍"),
-    st.Page("pages/6_Compliance_Reports.py", title="Compliance Reports", icon="📋"),
-    st.Page("pages/7_SOP_Library.py", title="SOP Library", icon="📚"),
-    st.Page("pages/8_System_Settings.py", title="System Settings", icon="⚙️"),
-])
 
 # ---------------------------------------------------------------------------
 # Top Header: Dynamic Real-Time Ticking Clock (JS-driven)
@@ -90,6 +84,7 @@ def render_top_header():
         with open(logo_path, "r", encoding="utf-8") as f:
             logo_html = f'<div style="height:52px; width:52px;">{f.read()}</div>'
     else:
+        # High-tech Fallback Biosensor SVG Logo
         logo_html = '<svg width="50" height="50" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="50" cy="50" r="45" stroke="#00d2ff" stroke-width="6" fill="#0b192c"/><path d="M30 50 Q 40 30, 50 50 T 70 50" stroke="#00d2ff" stroke-width="5" fill="none"/><circle cx="50" cy="50" r="8" fill="#3abf07"/><circle cx="30" cy="50" r="5" fill="#00d2ff"/><circle cx="70" cy="50" r="5" fill="#00d2ff"/></svg>'
 
     header_component_html = f"""
@@ -176,6 +171,7 @@ def render_top_header():
                 <div class="clock-value" id="live-clock">Syncing clock...</div>
             </div>
         </div>
+
         <script>
             function updateClock() {{
                 const now = new Date();
@@ -184,14 +180,17 @@ def render_top_header():
                 const hours = String(now.getHours()).padStart(2, '0');
                 const minutes = String(now.getMinutes()).padStart(2, '0');
                 const seconds = String(now.getSeconds()).padStart(2, '0');
+                
                 document.getElementById('live-clock').textContent = dateStr + ' | ' + hours + ':' + minutes + ':' + seconds;
             }}
+            
             updateClock();
             setInterval(updateClock, 1000);
         </script>
     </body>
     </html>
     """
+
     st.iframe(header_component_html, height=95)
 
 render_top_header()
@@ -248,12 +247,3 @@ if recent_logs.empty:
     st.info("No telemetry logs available.")
 else:
     st.dataframe(recent_logs, width='stretch', hide_index=True)
-
-# ---------------------------------------------------------------------------
-# Navigation & Sidebar Routing Guard
-# ---------------------------------------------------------------------------
-if "_nav_rendered" not in st.session_state:
-    st.session_state["_nav_rendered"] = True
-    render_logout_sidebar()
-
-pg.run()

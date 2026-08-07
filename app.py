@@ -254,7 +254,10 @@ else:
     st.dataframe(recent_logs, width='stretch', hide_index=True)
 
 # ---------------------------------------------------------------------------
-# Navigation & Sidebar Routing
+# Navigation & Sidebar Routing (Only render logout sidebar when pg.run() is executing the router context to avoid root duplication)
 # ---------------------------------------------------------------------------
-render_logout_sidebar()
+if "_streamlit_navigation_running" not in st.session_state:
+    st.session_state["_streamlit_navigation_running"] = True
+    render_logout_sidebar()
+
 pg.run()

@@ -50,7 +50,7 @@ if not check_auth():
     st.stop()
 
 # ---------------------------------------------------------------------------
-# 3. AUTHENTICATED APPLICATION CODE
+# 3. AUTHENTICATED APPLICATION CODE & MULTI-PAGE ROUTING
 # ---------------------------------------------------------------------------
 
 # Render the universal logout button on all page sidebars
@@ -61,6 +61,14 @@ if "db_ready" not in st.session_state:
     st.session_state["db_ready"] = initialize_database()
 
 inject_global_css()
+
+# Define explicit multi-page router for sidebar visibility & seamless page execution
+pg = st.navigation([
+    st.Page("app.py", title="Executive Dashboard", icon="📊"),
+    st.Page("pages/2_AHU_Monitoring.py", title="AHU & DHU Monitoring", icon="❄️"),
+    st.Page("pages/8_Compliance_&_Reports.py", title="Compliance & Reports", icon="📋"),
+    st.Page("pages/9_System_Settings.py", title="System Settings", icon="⚙️"),
+])
 
 # ---------------------------------------------------------------------------
 # Top Header: Dynamic Real-Time Ticking Clock (JS-driven)
@@ -247,3 +255,6 @@ if recent_logs.empty:
     st.info("No telemetry logs available.")
 else:
     st.dataframe(recent_logs, width='stretch', hide_index=True)
+
+# Run the navigation page renderer
+pg.run()

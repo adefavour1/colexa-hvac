@@ -49,30 +49,11 @@ st.markdown(hide_streamlit_style, unsafe_allow_html=True)
 if not check_auth():
     st.stop()
 
-# ---------------------------------------------------------------------------
-# 3. AUTHENTICATED APPLICATION CODE & MULTI-PAGE ROUTING
-# ---------------------------------------------------------------------------
-
-# Render the universal logout button on all page sidebars
-render_logout_sidebar()
-
 # Startup: ensure database schema exists
 if "db_ready" not in st.session_state:
     st.session_state["db_ready"] = initialize_database()
 
 inject_global_css()
-
-# Define explicit multi-page router mapped to your exact page files
-pg = st.navigation([
-    st.Page("app.py", title="Executive Dashboard", icon="📊"),
-    st.Page("pages/1_AHU_Monitoring.py", title="AHU Monitoring", icon="❄️"),
-    st.Page("pages/2_Air_Compressor.py", title="Air Compressor", icon="🌀"),
-    st.Page("pages/3_DHU_Monitoring.py", title="DHU Monitoring", icon="💧"),
-    st.Page("pages/4_Executive_Dashboard.py", title="Executive Overview", icon="📈"),
-    st.Page("pages/5_RCA_and_CAPA.py", title="RCA & CAPA Engine", icon="🔍"),
-    st.Page("pages/6_Compliance_Reports.py", title="Compliance Reports", icon="📋"),
-    st.Page("pages/7_SOP_Library.py", title="SOP Library", icon="📚"),
-])
 
 # ---------------------------------------------------------------------------
 # Top Header: Dynamic Real-Time Ticking Clock (JS-driven)
@@ -259,6 +240,25 @@ if recent_logs.empty:
     st.info("No telemetry logs available.")
 else:
     st.dataframe(recent_logs, width='stretch', hide_index=True)
+
+# ---------------------------------------------------------------------------
+# 3. AUTHENTICATED APPLICATION CODE & MULTI-PAGE ROUTING
+# ---------------------------------------------------------------------------
+
+# Render the universal logout button on all page sidebars *after* root view execution to prevent duplicate element IDs
+render_logout_sidebar()
+
+# Define explicit multi-page router mapped to your exact page files
+pg = st.navigation([
+    st.Page("app.py", title="Executive Dashboard", icon="📊"),
+    st.Page("pages/1_AHU_Monitoring.py", title="AHU Monitoring", icon="❄️"),
+    st.Page("pages/2_Air_Compressor.py", title="Air Compressor", icon="🌀"),
+    st.Page("pages/3_DHU_Monitoring.py", title="DHU Monitoring", icon="💧"),
+    st.Page("pages/4_Executive_Dashboard.py", title="Executive Overview", icon="📈"),
+    st.Page("pages/5_RCA_and_CAPA.py", title="RCA & CAPA Engine", icon="🔍"),
+    st.Page("pages/6_Compliance_Reports.py", title="Compliance Reports", icon="📋"),
+    st.Page("pages/7_SOP_Library.py", title="SOP Library", icon="📚"),
+])
 
 # Run the navigation page renderer
 pg.run()

@@ -1,3 +1,9 @@
+from pathlib import Path
+import sys
+
+# Force Python to recognize the root directory for local module imports
+sys.path.append(str(Path(__file__).resolve().parent))
+
 import streamlit as st
 from auth import check_auth
 from database.schema import initialize_database

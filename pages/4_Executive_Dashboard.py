@@ -37,7 +37,7 @@ render_logout_sidebar()
 inject_global_css()
 
 # Reliable native navigation link back to Home overview page
-st.page_link("pages/0_Home_page.py", label="⬅️ Back to Home / Overview", icon="🏠")
+st.page_link("pages/app.py", label="⬅️ Back to Home / Overview", icon="🏠")
 st.write("")
 
 # ---------------------------------------------------------------------------

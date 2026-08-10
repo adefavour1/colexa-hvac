@@ -18,7 +18,7 @@ st.set_page_config(
     initial_sidebar_state="expanded",
 )
 
-# Hide unnecessary toolbar icons while keeping the sidebar and collapse control fully visible
+# Hide unnecessary toolbar icons and viewer items while ensuring the sidebar collapse control is clean and fully operational
 hide_streamlit_style = """
 <style>
 #MainMenu {visibility: hidden !important;}
@@ -26,11 +26,16 @@ hide_streamlit_style = """
 [data-testid="stDecoration"] {visibility: hidden !important;}
 [data-testid="stStatusWidget"] {visibility: hidden !important;}
 footer {visibility: hidden !important;}
+.viewerBadge_link__1S13V {display: none !important;}
+div[class*="viewerBadge"] {display: none !important;}
 
-/* Ensure sidebar and navigation elements are explicitly visible */
-[data-testid="stSidebar"] {
+/* Target header elements specifically to leave only the sidebar control visible */
+header[data-testid="stHeader"] {
+    background: transparent !important;
     visibility: visible !important;
-    display: block !important;
+}
+header[data-testid="stHeader"] > div:first-child {
+    display: none !important;
 }
 [data-testid="collapsedControl"] {
     display: block !important;
@@ -44,11 +49,13 @@ st.markdown(hide_streamlit_style, unsafe_allow_html=True)
 if not check_auth():
     st.stop()
 
-# ---------------------------------------------------------------------------
-# 3. MULTI-PAGE NAVIGATION & SIDEBAR SETUP
-# ---------------------------------------------------------------------------
+# Startup: ensure database schema exists
+if "db_ready" not in st.session_state:
+    st.session_state["db_ready"] = initialize_database()
 
-# Define explicit multi-page router containing app.py as the primary entry point
+inject_global_css()
+
+# Define explicit multi-page router including app.py so st.switch_page("app.py") targets it properly
 pg = st.navigation([
     st.Page("app.py", title="Executive Dashboard", icon="📊"),
     st.Page("pages/1_AHU_Monitoring.py", title="AHU Monitoring", icon="❄️"),
@@ -58,19 +65,13 @@ pg = st.navigation([
     st.Page("pages/5_RCA_and_CAPA.py", title="RCA & CAPA Engine", icon="🔍"),
     st.Page("pages/6_Compliance_Reports.py", title="Compliance Reports", icon="📋"),
     st.Page("pages/7_SOP_Library.py", title="SOP Library", icon="📚"),
-    st.Page("pages/8_System_Settings.py", title="System Settings", icon="⚙️"),
 ])
 
-# Render the universal logout button on the sidebar safely without duplicate widget errors
-if "_nav_rendered" not in st.session_state:
-    st.session_state["_nav_rendered"] = True
-    render_logout_sidebar()
+# Render the logout sidebar cleanly
+render_logout_sidebar()
 
-# Startup: ensure database schema exists
-if "db_ready" not in st.session_state:
-    st.session_state["db_ready"] = initialize_database()
-
-inject_global_css()
+# Execute the navigation router first so pages load properly without duplicate execution loops
+pg.run()
 
 # ---------------------------------------------------------------------------
 # Top Header: Dynamic Real-Time Ticking Clock (JS-driven)
@@ -256,7 +257,4 @@ recent_logs = fetch_facility_logs(limit=15)
 if recent_logs.empty:
     st.info("No telemetry logs available.")
 else:
-    st.dataframe(recent_logs, width='stretch', hide_index=True)
-
-# Execute the multi-page router to render the sidebar navigation layout
-pg.run()
+    st.dataframe(recent_logs, use_container_width=True, hide_index=True)

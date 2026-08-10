@@ -36,7 +36,7 @@ if "db_ready" not in st.session_state:
 inject_global_css()
 
 # ---------------------------------------------------------------------------
-# Sidebar Navigation Panel (Using safe, standard Markdown paths)
+# Sidebar Navigation Panel (Using same-tab HTML links)
 # ---------------------------------------------------------------------------
 with st.sidebar:
     logo_file = Path("assets/logo.png")
@@ -49,14 +49,14 @@ with st.sidebar:
     st.divider()
     st.markdown("### Navigation Controls")
     
-    st.markdown("🏠 **[Home Overview](/)**")
-    st.markdown("📈 **[Executive Dashboard](/Executive_Dashboard)**")
-    st.markdown("❄️ **[AHU Monitoring](/AHU_Monitoring)**")
-    st.markdown("🌀 **[Air Compressor](/Air_Compressor)**")
-    st.markdown("💧 **[DHU Monitoring](/DHU_Monitoring)**")
-    st.markdown("🔍 **[RCA & CAPA Engine](/RCA_and_CAPA)**")
-    st.markdown("📋 **[Compliance Reports](/Compliance_Reports)**")
-    st.markdown("📚 **[SOP Library](/SOP_Library)**")
+    st.markdown('🏠 <a href="/" target="_self">Home Overview</a>', unsafe_allow_html=True)
+    st.markdown('📈 <a href="/Executive_Dashboard" target="_self">Executive Dashboard</a>', unsafe_allow_html=True)
+    st.markdown('❄️ <a href="/AHU_Monitoring" target="_self">AHU Monitoring</a>', unsafe_allow_html=True)
+    st.markdown('🌀 <a href="/Air_Compressor" target="_self">Air Compressor</a>', unsafe_allow_html=True)
+    st.markdown('💧 <a href="/DHU_Monitoring" target="_self">DHU Monitoring</a>', unsafe_allow_html=True)
+    st.markdown('🔍 <a href="/RCA_and_CAPA" target="_self">RCA & CAPA Engine</a>', unsafe_allow_html=True)
+    st.markdown('📋 <a href="/Compliance_Reports" target="_self">Compliance Reports</a>', unsafe_allow_html=True)
+    st.markdown('📚 <a href="/SOP_Library" target="_self">SOP Library</a>', unsafe_allow_html=True)
 
 # 3. Main Page Content
 render_facility_header(

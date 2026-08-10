@@ -51,7 +51,10 @@ with st.sidebar:
     st.caption("HVAC & Facility Infrastructure")
     st.divider()
     st.markdown("### Navigation Controls")
-    st.page_link("app.py", label="Home Overview", icon="🏠")
+    
+    # Safe link back to root entry point
+    st.markdown("🏠 **[Home Overview](/)**")
+    
     st.page_link("pages/4_Executive_Dashboard.py", label="Executive Dashboard", icon="📈")
     st.page_link("pages/1_AHU_Monitoring.py", label="AHU Monitoring", icon="❄️")
     st.page_link("pages/2_Air_Compressor.py", label="Air Compressor", icon="🌀")

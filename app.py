@@ -13,10 +13,10 @@ st.set_page_config(
     page_title="COLEXA BIOSENSOR | HVAC Monitoring",
     page_icon="❄️",
     layout="wide",
-    initial_sidebar_state="expanded",  # Forces the sidebar to open by default
+    initial_sidebar_state="expanded",
 )
 
-# Hide unnecessary toolbar elements (keeping the collapse control active)
+# Hide unnecessary toolbar elements
 hide_streamlit_style = """
 <style>
 #MainMenu {visibility: hidden !important;}
@@ -44,7 +44,7 @@ if "db_ready" not in st.session_state:
 inject_global_css()
 
 # ---------------------------------------------------------------------------
-# Explicit Sidebar Content (Forces the sidebar to render and stay visible)
+# Sidebar Navigation (Using standard safe links to prevent KeyErrors)
 # ---------------------------------------------------------------------------
 with st.sidebar:
     st.image("assets/logo.png", width=150) if Path("assets/logo.png").exists() else st.write("❄️ **COLEXA BIOSENSOR**")
@@ -52,16 +52,14 @@ with st.sidebar:
     st.divider()
     st.markdown("### Navigation Controls")
     
-    # Safe link back to root entry point
     st.markdown("🏠 **[Home Overview](/)**")
-    
-    st.page_link("pages/4_Executive_Dashboard.py", label="Executive Dashboard", icon="📈")
-    st.page_link("pages/1_AHU_Monitoring.py", label="AHU Monitoring", icon="❄️")
-    st.page_link("pages/2_Air_Compressor.py", label="Air Compressor", icon="🌀")
-    st.page_link("pages/3_DHU_Monitoring.py", label="DHU Monitoring", icon="💧")
-    st.page_link("pages/5_RCA_and_CAPA.py", label="RCA & CAPA Engine", icon="🔍")
-    st.page_link("pages/6_Compliance_Reports.py", label="Compliance Reports", icon="📋")
-    st.page_link("pages/7_SOP_Library.py", label="SOP Library", icon="📚")
+    st.markdown("📈 **[Executive Dashboard](/Executive_Dashboard)**")
+    st.markdown("❄️ **[AHU Monitoring](/AHU_Monitoring)**")
+    st.markdown("🌀 **[Air Compressor](/Air_Compressor)**")
+    st.markdown("💧 **[DHU Monitoring](/DHU_Monitoring)**")
+    st.markdown("🔍 **[RCA & CAPA Engine](/RCA_and_CAPA)**")
+    st.markdown("📋 **[Compliance Reports](/Compliance_Reports)**")
+    st.markdown("📚 **[SOP Library](/SOP_Library)**")
 
 # 3. Main Page Content
 render_facility_header(

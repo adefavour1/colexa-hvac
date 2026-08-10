@@ -36,8 +36,9 @@ if "db_ready" not in st.session_state:
 
 inject_global_css()
 
-# Define explicit multi-page router
+# Define explicit multi-page router including the Home page
 pg = st.navigation([
+    st.Page("pages/0_Home_page.py", title="Home / Overview", icon="🏠"),
     st.Page("pages/4_Executive_Dashboard.py", title="Executive Overview", icon="📈"),
     st.Page("pages/1_AHU_Monitoring.py", title="AHU Monitoring", icon="❄️"),
     st.Page("pages/2_Air_Compressor.py", title="Air Compressor", icon="🌀"),

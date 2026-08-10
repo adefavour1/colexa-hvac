@@ -19,7 +19,6 @@ st.set_page_config(
 # Minimal safe styles that preserve the navigation sidebar and collapse toggle
 st.markdown("""
 <style>
-[data-testid="stToolbar"] {visibility: hidden;}
 footer {visibility: hidden;}
 </style>
 """, unsafe_allow_html=True)

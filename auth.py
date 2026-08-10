@@ -53,8 +53,8 @@ def render_logout_sidebar() -> None:
         st.markdown("---")
         current_user = st.session_state.get("username", "Operator")
         st.write(f"👤 **{current_user}**")
-        # Fixed element key collision across pages by using a unique runtime identifier
-        if st.button("🚪 Log Out", use_container_width=True, key=f"logout_btn_{id(st.session_state)}"):
+        # Fixed element key collision across pages by using a stable, globally unique key
+        if st.button("🚪 Log Out", use_container_width=True, key="unique_global_logout_button"):
             st.session_state["password_correct"] = False
             st.session_state.pop("username", None)
             st.rerun()

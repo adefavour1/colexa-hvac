@@ -1,4 +1,4 @@
-import streamlit as str_lit  # or just use st if imported
+import streamlit as st
 
 def check_auth():
     """Checks if the user is authenticated in session state. If not, displays login form."""

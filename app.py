@@ -8,7 +8,7 @@ from database.schema import initialize_database
 from database.operations import compute_kpis
 from utils.ui_components import inject_global_css, render_facility_header, render_kpi_card
 
-# 1. Page Configuration
+# 1. Page Configuration (Forcing sidebar expanded state)
 st.set_page_config(
     page_title="COLEXA BIOSENSOR | HVAC Monitoring",
     page_icon="❄️",
@@ -16,17 +16,17 @@ st.set_page_config(
     initial_sidebar_state="expanded",
 )
 
-# Hide unnecessary toolbar elements
+# Safe styling that keeps sidebar visible and collapse button functional
 hide_streamlit_style = """
 <style>
 #MainMenu {visibility: hidden !important;}
 [data-testid="stToolbar"] {visibility: hidden !important;}
-[data-testid="stDecoration"] {visibility: hidden !important;}
-[data-testid="stStatusWidget"] {visibility: hidden !important;}
 footer {visibility: hidden !important;}
-header[data-testid="stHeader"] { background: transparent !important; visibility: visible !important; }
-header[data-testid="stHeader"] > div:first-child { display: none !important; }
-[data-testid="collapsedControl"] { display: block !important; visibility: visible !important; }
+/* Ensure sidebar is explicitly forced visible */
+[data-testid="stSidebar"] {
+    display: block !important;
+    visibility: visible !important;
+}
 </style>
 """
 st.markdown(hide_streamlit_style, unsafe_allow_html=True)
@@ -44,7 +44,7 @@ if "db_ready" not in st.session_state:
 inject_global_css()
 
 # ---------------------------------------------------------------------------
-# Sidebar Navigation (Using standard safe links to prevent KeyErrors)
+# Sidebar Navigation Menu
 # ---------------------------------------------------------------------------
 with st.sidebar:
     st.image("assets/logo.png", width=150) if Path("assets/logo.png").exists() else st.write("❄️ **COLEXA BIOSENSOR**")

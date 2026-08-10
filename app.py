@@ -13,10 +13,10 @@ st.set_page_config(
     page_title="COLEXA BIOSENSOR | HVAC Monitoring",
     page_icon="❄️",
     layout="wide",
-    initial_sidebar_state="expanded",
+    initial_sidebar_state="expanded",  # Forces the sidebar to open by default
 )
 
-# Hide unnecessary toolbar elements
+# Hide unnecessary toolbar elements (keeping the collapse control active)
 hide_streamlit_style = """
 <style>
 #MainMenu {visibility: hidden !important;}
@@ -43,13 +43,29 @@ if "db_ready" not in st.session_state:
 
 inject_global_css()
 
-# Render Branded Header Banner
+# ---------------------------------------------------------------------------
+# Explicit Sidebar Content (Forces the sidebar to render and stay visible)
+# ---------------------------------------------------------------------------
+with st.sidebar:
+    st.image("assets/logo.png", width=150) if Path("assets/logo.png").exists() else st.write("❄️ **COLEXA BIOSENSOR**")
+    st.caption("HVAC & Facility Infrastructure")
+    st.divider()
+    st.markdown("### Navigation Controls")
+    st.page_link("app.py", label="Home Overview", icon="🏠")
+    st.page_link("pages/4_Executive_Dashboard.py", label="Executive Dashboard", icon="📈")
+    st.page_link("pages/1_AHU_Monitoring.py", label="AHU Monitoring", icon="❄️")
+    st.page_link("pages/2_Air_Compressor.py", label="Air Compressor", icon="🌀")
+    st.page_link("pages/3_DHU_Monitoring.py", label="DHU Monitoring", icon="💧")
+    st.page_link("pages/5_RCA_and_CAPA.py", label="RCA & CAPA Engine", icon="🔍")
+    st.page_link("pages/6_Compliance_Reports.py", label="Compliance Reports", icon="📋")
+    st.page_link("pages/7_SOP_Library.py", label="SOP Library", icon="📚")
+
+# 3. Main Page Content
 render_facility_header(
     "Facility Home & Overview",
     "Colexa Biosensor HVAC & Infrastructure Monitoring Matrix"
 )
 
-# 3. Real-Time KPI Summary Cards
 kpis = compute_kpis() if callable(compute_kpis) else {}
 kpi_cols = st.columns(5)
 
@@ -66,4 +82,4 @@ with kpi_cols[4]:
 
 st.write("")
 st.subheader("Facility Infrastructure Scopes Matrix")
-st.info("👈 Use the sidebar navigation menu on the left to switch between AHU Monitoring, Executive Dashboards, Compliance Reports, and SOP Library.")
+st.info("Use the sidebar menu on the left to navigate across monitoring panels, compliance reports, and SOP libraries.")

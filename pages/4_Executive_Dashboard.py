@@ -36,9 +36,9 @@ if not check_auth():
 render_logout_sidebar()
 inject_global_css()
 
-# Navigation back handler using a safe query or structural layout approach
-if st.button("⬅️ Back to Home"):
-    st.switch_page("pages/4_Executive_Dashboard.py") # or handle via safe UI link elements
+# Reliable native navigation link back to Home overview page
+st.page_link("pages/0_Home.py", label="⬅️ Back to Home / Overview", icon="🏠")
+st.write("")
 
 # ---------------------------------------------------------------------------
 # Sidebar Navigation & Branding (Standardized Layout)

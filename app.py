@@ -24,7 +24,6 @@ inject_global_css()
 
 # This is the router — it belongs ONLY in app.py
 pg = st.navigation([
-    st.Page("pages/0_Home.py", title="Home / Overview", icon="🏠"),
     st.Page("pages/4_Executive_Dashboard.py", title="Executive Overview", icon="📈"),
     st.Page("pages/1_AHU_Monitoring.py", title="AHU Monitoring", icon="❄️"),
     st.Page("pages/2_Air_Compressor.py", title="Air Compressor", icon="🌀"),

@@ -1,4 +1,5 @@
 import hmac
+import os
 import streamlit as st
 
 def check_auth() -> bool:
@@ -49,11 +50,11 @@ def render_logout_sidebar() -> None:
     """Renders user info and log out button on all page sidebars once logged in."""
     with st.sidebar:
         assets_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "assets") if "os" in globals() else "assets"
-        # Optional: You can place your sidebar branding/logo here
         st.markdown("---")
         current_user = st.session_state.get("username", "Operator")
         st.write(f"👤 **{current_user}**")
-        if st.button("🚪 Log Out", use_container_width=True):
+        # Added unique key parameter to prevent duplicate ID collision across multi-page reruns
+        if st.button("🚪 Log Out", use_container_width=True, key="unique_logout_sidebar_btn"):
             st.session_state["password_correct"] = False
             st.session_state.pop("username", None)
             st.rerun()

@@ -5,7 +5,7 @@ from datetime import datetime
 import streamlit as st
 import streamlit.components.v1 as components
 
-from auth import check_auth, render_logout_sidebar
+from auth import check_auth
 from database.schema import initialize_database
 from database.operations import compute_kpis, fetch_facility_logs
 from utils.ui_components import inject_global_css, render_kpi_card
@@ -66,9 +66,6 @@ pg = st.navigation([
     st.Page("pages/6_Compliance_Reports.py", title="Compliance Reports", icon="📋"),
     st.Page("pages/7_SOP_Library.py", title="SOP Library", icon="📚"),
 ])
-
-# Render the logout sidebar cleanly
-render_logout_sidebar()
 
 # Execute the navigation router first so pages load properly without duplicate execution loops
 pg.run()

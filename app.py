@@ -37,7 +37,7 @@ if "db_ready" not in st.session_state:
 inject_global_css()
 
 # ---------------------------------------------------------------------------
-# Sidebar Navigation Panel
+# Sidebar Navigation Panel (Using safe, standard Markdown paths)
 # ---------------------------------------------------------------------------
 with st.sidebar:
     logo_file = Path("assets/logo.png")
@@ -50,13 +50,14 @@ with st.sidebar:
     st.divider()
     st.markdown("### Navigation Controls")
     
-    st.page_link("pages/4_Executive_Dashboard.py", label="Executive Dashboard", icon="📈")
-    st.page_link("pages/1_AHU_Monitoring.py", label="AHU Monitoring", icon="❄️")
-    st.page_link("pages/2_Air_Compressor.py", label="Air Compressor", icon="🌀")
-    st.page_link("pages/3_DHU_Monitoring.py", label="DHU Monitoring", icon="💧")
-    st.page_link("pages/5_RCA_and_CAPA.py", label="RCA & CAPA Engine", icon="🔍")
-    st.page_link("pages/6_Compliance_Reports.py", label="Compliance Reports", icon="📋")
-    st.page_link("pages/7_SOP_Library.py", label="SOP Library", icon="📚")
+    st.markdown("🏠 **[Home Overview](/)**")
+    st.markdown("📈 **[Executive Dashboard](/Executive_Dashboard)**")
+    st.markdown("❄️ **[AHU Monitoring](/AHU_Monitoring)**")
+    st.markdown("🌀 **[Air Compressor](/Air_Compressor)**")
+    st.markdown("💧 **[DHU Monitoring](/DHU_Monitoring)**")
+    st.markdown("🔍 **[RCA & CAPA Engine](/RCA_and_CAPA)**")
+    st.markdown("📋 **[Compliance Reports](/Compliance_Reports)**")
+    st.markdown("📚 **[SOP Library](/SOP_Library)**")
 
 # 3. Main Page Content
 render_facility_header(

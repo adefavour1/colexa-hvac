@@ -8,7 +8,7 @@ from database.schema import initialize_database
 from database.operations import compute_kpis
 from utils.ui_components import inject_global_css, render_facility_header, render_kpi_card
 
-# 1. Page Configuration (Forcing sidebar expanded state)
+# 1. Page Configuration
 st.set_page_config(
     page_title="COLEXA BIOSENSOR | HVAC Monitoring",
     page_icon="❄️",
@@ -16,20 +16,13 @@ st.set_page_config(
     initial_sidebar_state="expanded",
 )
 
-# Safe styling that keeps sidebar visible and collapse button functional
-hide_streamlit_style = """
+# Minimal safe styles that preserve the navigation sidebar and collapse toggle
+st.markdown("""
 <style>
-#MainMenu {visibility: hidden !important;}
-[data-testid="stToolbar"] {visibility: hidden !important;}
-footer {visibility: hidden !important;}
-/* Ensure sidebar is explicitly forced visible */
-[data-testid="stSidebar"] {
-    display: block !important;
-    visibility: visible !important;
-}
+[data-testid="stToolbar"] {visibility: hidden;}
+footer {visibility: hidden;}
 </style>
-"""
-st.markdown(hide_streamlit_style, unsafe_allow_html=True)
+""", unsafe_allow_html=True)
 
 # 2. Authentication Gatekeeper
 if not check_auth():
@@ -44,22 +37,26 @@ if "db_ready" not in st.session_state:
 inject_global_css()
 
 # ---------------------------------------------------------------------------
-# Sidebar Navigation Menu
+# Sidebar Navigation Panel
 # ---------------------------------------------------------------------------
 with st.sidebar:
-    st.image("assets/logo.png", width=150) if Path("assets/logo.png").exists() else st.write("❄️ **COLEXA BIOSENSOR**")
+    logo_file = Path("assets/logo.png")
+    if logo_file.exists():
+        st.image(str(logo_file), width=140)
+    else:
+        st.write("❄️ **COLEXA BIOSENSOR**")
+        
     st.caption("HVAC & Facility Infrastructure")
     st.divider()
     st.markdown("### Navigation Controls")
     
-    st.markdown("🏠 **[Home Overview](/)**")
-    st.markdown("📈 **[Executive Dashboard](/Executive_Dashboard)**")
-    st.markdown("❄️ **[AHU Monitoring](/AHU_Monitoring)**")
-    st.markdown("🌀 **[Air Compressor](/Air_Compressor)**")
-    st.markdown("💧 **[DHU Monitoring](/DHU_Monitoring)**")
-    st.markdown("🔍 **[RCA & CAPA Engine](/RCA_and_CAPA)**")
-    st.markdown("📋 **[Compliance Reports](/Compliance_Reports)**")
-    st.markdown("📚 **[SOP Library](/SOP_Library)**")
+    st.page_link("pages/4_Executive_Dashboard.py", label="Executive Dashboard", icon="📈")
+    st.page_link("pages/1_AHU_Monitoring.py", label="AHU Monitoring", icon="❄️")
+    st.page_link("pages/2_Air_Compressor.py", label="Air Compressor", icon="🌀")
+    st.page_link("pages/3_DHU_Monitoring.py", label="DHU Monitoring", icon="💧")
+    st.page_link("pages/5_RCA_and_CAPA.py", label="RCA & CAPA Engine", icon="🔍")
+    st.page_link("pages/6_Compliance_Reports.py", label="Compliance Reports", icon="📋")
+    st.page_link("pages/7_SOP_Library.py", label="SOP Library", icon="📚")
 
 # 3. Main Page Content
 render_facility_header(

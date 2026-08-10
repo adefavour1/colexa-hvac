@@ -23,7 +23,7 @@ def check_auth() -> bool:
     )
 
     # Render login screen
-    st.markdown("<br><br>", unsafe_allow_html=True, )
+    st.markdown("<br><br>", unsafe_allow_html=True)
     col1, col2, col3 = st.columns([1, 1.2, 1])
     with col2:
         st.title("🔒 COLEXA Portal")
@@ -47,18 +47,14 @@ def check_auth() -> bool:
     return False
 
 def render_logout_sidebar() -> None:
-    """Renders user info and log out button on sidebars safely with context-scoped keys."""
+    """Renders user info and log out button on the sidebar."""
     with st.sidebar:
         assets_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "assets") if "os" in globals() else "assets"
         st.markdown("---")
         current_user = st.session_state.get("username", "Operator")
         st.write(f"👤 **{current_user}**")
         
-        # Prevent key clashes across multi-page reruns by scoping the key dynamically
-        page_identifier = getattr(st, "navigation", None) or "global"
-        unique_key = f"logout_btn_{hash(str(page_identifier))}"
-        
-        if st.button("🚪 Log Out", use_container_width=True, key=unique_key):
+        if st.button("🚪 Log Out", use_container_width=True):
             st.session_state["password_correct"] = False
             st.session_state.pop("username", None)
             st.rerun()

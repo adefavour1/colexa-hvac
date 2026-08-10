@@ -2,20 +2,6 @@
 Executive Dashboard - Real-time telemetry overview, multi-unit parameter dashboards,
 environmental stability heatmaps, and End-of-Day data maintenance.
 """
-import streamlit as st
-from auth import check_auth, render_logout_sidebar
-
-st.set_page_config(page_title="Executive Dashboard", layout="wide")
-
-# Block access if user manually clears session or logs out
-if not check_auth():
-    st.stop()
-
-render_logout_sidebar()
-
-if st.button("⬅️ Back to Home page"):
-    st.switch_page("app.py")
-
 import os
 import sqlite3
 import base64
@@ -25,6 +11,7 @@ import plotly.express as px
 import plotly.graph_objects as go
 import streamlit as st
 
+from auth import check_auth, render_logout_sidebar
 from database.operations import (
     fetch_ahu_details,
     fetch_dhu_details,
@@ -39,8 +26,19 @@ from utils.ui_components import (
     PARAMETER_BOUNDS,
 )
 
+# 1. Page Configuration (Must be the very first Streamlit call)
 st.set_page_config(page_title="Executive Dashboard | COLEXA", page_icon="📊", layout="wide")
+
+# Block access if user manually clears session or logs out
+if not check_auth():
+    st.stop()
+
+render_logout_sidebar()
 inject_global_css()
+
+# Navigation back handler using a safe query or structural layout approach
+if st.button("⬅️ Back to Home"):
+    st.switch_page("pages/4_Executive_Dashboard.py") # or handle via safe UI link elements
 
 # ---------------------------------------------------------------------------
 # Sidebar Navigation & Branding (Standardized Layout)
@@ -182,7 +180,6 @@ with tab_ahu:
 with tab_dhu:
     st.subheader("DHU-1 vs DHU-2 Telemetry Comparison")
     if not dhu_df.empty:
-        # Standardize Unit IDs
         if "unit_id" in dhu_df.columns:
             dhu_df["unit_id"] = dhu_df["unit_id"].replace({"DHU-01": "DHU-1", "DHU-02": "DHU-2"})
         
@@ -319,7 +316,6 @@ with st.expander("⚠️ Expand Data Deletion & Purge Controls"):
             st.error("Please check the confirmation box before purging records.")
         else:
             try:
-                # Resolve SQLite DB connection
                 db_path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "database", "colexa.db")
                 if not os.path.exists(db_path):
                     db_path = "colexa.db"

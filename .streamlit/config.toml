@@ -9,4 +9,4 @@ font = "sans serif"
 [client]
 showErrorDetails = false
 toolbarMode = "auto"
-showSidebarNavigation = True
+showSidebarNavigation = false

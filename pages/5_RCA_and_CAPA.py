@@ -78,7 +78,7 @@ with st.sidebar:
     st.markdown('📋 <a href="Compliance_Reports" target="_self">Compliance Reports</a>', unsafe_allow_html=True)
     st.markdown('📚 <a href="SOP_Library" target="_self">SOP Library</a>', unsafe_allow_html=True)
     st.markdown('⚙️ <a href="System_Settings" target="_self">System Settings</a>', unsafe_allow_html=True)
-
+    
 # Render Branded Header Banner
 render_facility_header(
     "Root Cause Analysis & CAPA Register",

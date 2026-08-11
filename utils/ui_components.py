@@ -121,8 +121,9 @@ def inject_global_css() -> None:
     st.markdown(
         f"""
         <style>
-        .stApp {{
-            background-color: {COLOR_CANVAS};
+        /* Force immediate dark slate background across all structural elements to prevent white flashing on load */
+        html, body, [data-testid="stAppViewContainer"], .stApp {{
+            background-color: {COLOR_CANVAS} !important;
             color: #E5E7EB;
         }}
         section[data-testid="stSidebar"] {{

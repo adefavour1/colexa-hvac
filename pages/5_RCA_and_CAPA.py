@@ -2,25 +2,12 @@
 RCA & CAPA - Deviation register, root cause browsing, CAPA sign-off with
 Real Cause, Corrective & Preventive Actions entry, and downloadable report export.
 """
-import streamlit as st
-from auth import check_auth, render_logout_sidebar
-
-st.set_page_config(page_title="Executive Dashboard", layout="wide")
-
-# Block access if user manually clears session or logs out
-if not check_auth():
-    st.stop()
-
-render_logout_sidebar()
-
-if st.button("⬅️ Back to Home page"):
-    st.switch_page("app.py")
-
 import os
 import base64
 import pandas as pd
 import streamlit as st
 
+from auth import check_auth, render_logout_sidebar
 from database.operations import fetch_deviations, update_capa_status
 from utils.ui_components import (
     inject_global_css,
@@ -33,11 +20,18 @@ from utils.rca_engine import (
     severity_rank,
 )
 
+# 1. Page Configuration (Called only once)
 st.set_page_config(page_title="RCA & CAPA | COLEXA", page_icon="🔍", layout="wide")
+
+# 2. Authentication Gatekeeper
+if not check_auth():
+    st.stop()
+
+render_logout_sidebar()
 inject_global_css()
 
 # ---------------------------------------------------------------------------
-# Sidebar Navigation & Branding (E-Signature Auth Removed)
+# Sidebar Navigation & Branding
 # ---------------------------------------------------------------------------
 with st.sidebar:
     assets_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "assets")
@@ -73,7 +67,16 @@ with st.sidebar:
     
     st.caption("HVAC & Facility Infrastructure Matrix")
     st.divider()
-    st.caption("Navigate using the pages listed above.")
+    st.markdown("### Navigation Controls")
+    
+    st.markdown('🏠 <a href="/" target="_self">Home Overview</a>', unsafe_allow_html=True)
+    st.markdown('📈 <a href="/Executive_Dashboard" target="_self">Executive Dashboard</a>', unsafe_allow_html=True)
+    st.markdown('❄️ <a href="/AHU_Monitoring" target="_self">AHU Monitoring</a>', unsafe_allow_html=True)
+    st.markdown('🌀 <a href="/Air_Compressor" target="_self">Air Compressor</a>', unsafe_allow_html=True)
+    st.markdown('💧 <a href="/DHU_Monitoring" target="_self">DHU Monitoring</a>', unsafe_allow_html=True)
+    st.markdown('🔍 <a href="/RCA_and_CAPA" target="_self">RCA & CAPA Engine</a>', unsafe_allow_html=True)
+    st.markdown('📋 <a href="/Compliance_Reports" target="_self">Compliance Reports</a>', unsafe_allow_html=True)
+    st.markdown('📚 <a href="/SOP_Library" target="_self">SOP Library</a>', unsafe_allow_html=True)
 
 # Render Branded Header Banner
 render_facility_header(
@@ -161,7 +164,8 @@ with tab_update:
         with col_status:
             new_status = st.selectbox("CAPA Status", options=["In Progress", "Closed", "Open"])
         with col_operator:
-            operator_name = st.text_input("Investigator / Operator ID", value="OP-SYSTEM", placeholder="e.g., OP-4029")
+            default_operator = st.session_state.get("username", "SYS_OPERATOR")
+            operator_name = st.text_input("Investigator / Operator ID", value=default_operator, placeholder="e.g., OP-4029")
 
         st.write("")
         real_cause = st.text_area(

@@ -2,26 +2,13 @@
 System Settings - Database Health, Parameter Boundary Configuration & Immutable Audit Trail.
 Governing SOP: CBL-QA-01 / 21 CFR Part 11 Compliance Engine.
 """
-import streamlit as st
-from auth import check_auth, render_logout_sidebar
-
-st.set_page_config(page_title="Executive Dashboard", layout="wide")
-
-# Block access if user manually clears session or logs out
-if not check_auth():
-    st.stop()
-
-render_logout_sidebar()
-
-if st.button("⬅️ Back to Home page"):
-    st.switch_page("app.py")
-
 import os
 import base64
 from datetime import datetime
 import pandas as pd
 import streamlit as st
 
+from auth import check_auth, render_logout_sidebar
 from database.schema import DB_PATH, initialize_database
 from database.operations import (
     fetch_audit_trail,
@@ -37,7 +24,14 @@ from utils.ui_components import (
     EXTENDED_PARAMETER_BOUNDS,
 )
 
+# 1. Page Configuration (Called only once)
 st.set_page_config(page_title="System Settings | COLEXA", page_icon="⚙️", layout="wide")
+
+# 2. Authentication Gatekeeper
+if not check_auth():
+    st.stop()
+
+render_logout_sidebar()
 inject_global_css()
 
 
@@ -74,6 +68,7 @@ with st.sidebar:
     else:
         sidebar_logo_html = '<span style="font-size: 26px;">⚙️</span>'
 
+    # Side-by-side Logo and Title Layout
     st.markdown(
         f"""
         <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 6px;">
@@ -86,7 +81,17 @@ with st.sidebar:
     
     st.caption("HVAC & Facility Infrastructure Matrix")
     st.divider()
-    st.caption("Navigate using the pages listed above.")
+    st.markdown("### Navigation Controls")
+    
+    st.markdown('🏠 <a href="/" target="_self">Home Overview</a>', unsafe_allow_html=True)
+    st.markdown('📈 <a href="/Executive_Dashboard" target="_self">Executive Dashboard</a>', unsafe_allow_html=True)
+    st.markdown('❄️ <a href="/AHU_Monitoring" target="_self">AHU Monitoring</a>', unsafe_allow_html=True)
+    st.markdown('🌀 <a href="/Air_Compressor" target="_self">Air Compressor</a>', unsafe_allow_html=True)
+    st.markdown('💧 <a href="/DHU_Monitoring" target="_self">DHU Monitoring</a>', unsafe_allow_html=True)
+    st.markdown('🔍 <a href="/RCA_and_CAPA" target="_self">RCA & CAPA Engine</a>', unsafe_allow_html=True)
+    st.markdown('📋 <a href="/Compliance_Reports" target="_self">Compliance Reports</a>', unsafe_allow_html=True)
+    st.markdown('📚 <a href="/SOP_Library" target="_self">SOP Library</a>', unsafe_allow_html=True)
+    st.markdown('⚙️ <a href="/System_Settings" target="_self">System Settings</a>', unsafe_allow_html=True)
 
 # Render Branded Header Banner
 render_facility_header(

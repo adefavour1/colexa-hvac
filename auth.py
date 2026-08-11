@@ -16,11 +16,15 @@ def check_auth():
             submit_btn = st.form_submit_button("Login", use_container_width=True)
             
             if submit_btn:
-                # Fetch secrets safely with defaults
-                expected_user = st.secrets.get("username", "colexa")
-                expected_pass = st.secrets.get("password", "cbl@cbl123")
+                # Safely check secrets with fallback handling, avoiding StreamlitAPIException crash if secrets.toml is missing
+                try:
+                    expected_user = st.secrets.get("username", "colexa")
+                    expected_pass = st.secrets.get("password", "cbl@cbl123")
+                except Exception:
+                    expected_user = "colexa"
+                    expected_pass = "cbl@cbl123"
                 
-                # Check credentials (if username isn't strictly in secrets, validate password)
+                # Check credentials
                 if password_input == expected_pass and (not expected_user or username_input == expected_user):
                     st.session_state["authenticated"] = True
                     st.session_state["username"] = username_input if username_input else "admin"

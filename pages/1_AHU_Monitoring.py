@@ -49,8 +49,9 @@ with st.sidebar:
         with open(logo_path, "r", encoding="utf-8") as f:
             sidebar_logo_html = f'<div style="height:38px; width:38px;">{f.read()}</div>'
     else:
-        sidebar_logo_html = '<span style="font-size: 26px;">🧪</span>'
+        sidebar_logo_html = '<span style="font-size: 26px;">❄️</span>'
 
+    # Side-by-side Logo and Title Layout
     st.markdown(
         f"""
         <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 6px;">
@@ -73,12 +74,13 @@ with st.sidebar:
     st.markdown('🔍 <a href="/RCA_and_CAPA" target="_self">RCA & CAPA Engine</a>', unsafe_allow_html=True)
     st.markdown('📋 <a href="/Compliance_Reports" target="_self">Compliance Reports</a>', unsafe_allow_html=True)
     st.markdown('📚 <a href="/SOP_Library" target="_self">SOP Library</a>', unsafe_allow_html=True)
+    st.markdown('⚙️ <a href="/System_Settings" target="_self">System Settings</a>', unsafe_allow_html=True)
 
 # Render Branded Header Banner
 render_facility_header("AHU Monitoring", "Governing SOP: CBL-MNT-02 — AHU Operating Procedure")
 
 # Direct User Instruction
-st.info("please fill in the input data below.")
+st.info("Please fill in the input data below.")
 
 # AHU Unit Selection
 unit_id = st.selectbox("Select AHU Unit", options=["AHU Control Panel"])

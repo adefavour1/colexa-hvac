@@ -83,16 +83,16 @@ with st.sidebar:
     st.divider()
     st.markdown("### Navigation Controls")
     
-    st.markdown('🏠 <a href="/" target="_self">Home Overview</a>', unsafe_allow_html=True)
-    st.markdown('📈 <a href="/Executive_Dashboard" target="_self">Executive Dashboard</a>', unsafe_allow_html=True)
-    st.markdown('❄️ <a href="/AHU_Monitoring" target="_self">AHU Monitoring</a>', unsafe_allow_html=True)
-    st.markdown('🌀 <a href="/Air_Compressor" target="_self">Air Compressor</a>', unsafe_allow_html=True)
-    st.markdown('💧 <a href="/DHU_Monitoring" target="_self">DHU Monitoring</a>', unsafe_allow_html=True)
-    st.markdown('🔍 <a href="/RCA_and_CAPA" target="_self">RCA & CAPA Engine</a>', unsafe_allow_html=True)
-    st.markdown('📋 <a href="/Compliance_Reports" target="_self">Compliance Reports</a>', unsafe_allow_html=True)
-    st.markdown('📚 <a href="/SOP_Library" target="_self">SOP Library</a>', unsafe_allow_html=True)
-    st.markdown('⚙️ <a href="/System_Settings" target="_self">System Settings</a>', unsafe_allow_html=True)
-
+    st.markdown('🏠 <a href="" target="_self">Home Overview</a>', unsafe_allow_html=True) # or index/Home
+    st.markdown('📈 <a href="Executive_Dashboard" target="_self">Executive Dashboard</a>', unsafe_allow_html=True)
+    st.markdown('❄️ <a href="AHU_Monitoring" target="_self">AHU Monitoring</a>', unsafe_allow_html=True)
+    st.markdown('🌀 <a href="Air_Compressor" target="_self">Air Compressor</a>', unsafe_allow_html=True)
+    st.markdown('💧 <a href="DHU_Monitoring" target="_self">DHU Monitoring</a>', unsafe_allow_html=True)
+    st.markdown('🔍 <a href="RCA_and_CAPA" target="_self">RCA & CAPA Engine</a>', unsafe_allow_html=True)
+    st.markdown('📋 <a href="Compliance_Reports" target="_self">Compliance Reports</a>', unsafe_allow_html=True)
+    st.markdown('📚 <a href="SOP_Library" target="_self">SOP Library</a>', unsafe_allow_html=True)
+    st.markdown('⚙️ <a href="System_Settings" target="_self">System Settings</a>', unsafe_allow_html=True)
+    
 # Render Branded Header Banner
 render_facility_header(
     "System Settings & Configuration",

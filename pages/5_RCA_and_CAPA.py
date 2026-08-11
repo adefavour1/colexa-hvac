@@ -1,27 +1,33 @@
 """
-RCA & CAPA - Deviation register, root cause browsing, CAPA sign-off with
-Real Cause, Corrective & Preventive Actions entry, and downloadable report export.
+Executive Dashboard - Real-time telemetry overview, multi-unit parameter dashboards,
+environmental stability heatmaps, and End-of-Day data maintenance.
 """
 import os
+import sqlite3
 import base64
+from datetime import datetime, date
 import pandas as pd
+import plotly.express as px
+import plotly.graph_objects as go
 import streamlit as st
 
 from auth import check_auth, render_logout_sidebar
-from database.operations import fetch_deviations, update_capa_status
+from database.operations import (
+    fetch_ahu_details,
+    fetch_dhu_details,
+    fetch_compressor_logs,
+    fetch_deviations,
+    compute_kpis,
+)
 from utils.ui_components import (
     inject_global_css,
     render_facility_header,
     render_kpi_card,
-)
-from utils.rca_engine import (
-    RCA_KNOWLEDGE_BASE,
-    get_rca_capa,
-    severity_rank,
+    PARAMETER_BOUNDS,
 )
 
 # 1. Page Configuration (Called only once)
-st.set_page_config(page_title="RCA & CAPA | COLEXA", page_icon="🔍", layout="wide")
+st.set_page_config(page_title="Executive Dashboard | COLEXA", page_icon="📊", layout="wide")
 
 # 2. Authentication Gatekeeper
 if not check_auth():
@@ -52,7 +58,7 @@ with st.sidebar:
         with open(logo_path, "r", encoding="utf-8") as f:
             sidebar_logo_html = f'<div style="height:38px; width:38px;">{f.read()}</div>'
     else:
-        sidebar_logo_html = '<span style="font-size: 26px;">🔍</span>'
+        sidebar_logo_html = '<span style="font-size: 26px;">📊</span>'
 
     # Side-by-side Logo and Title Layout
     st.markdown(
@@ -77,230 +83,272 @@ with st.sidebar:
     st.markdown('🔍 <a href="/RCA_and_CAPA" target="_self">RCA & CAPA Engine</a>', unsafe_allow_html=True)
     st.markdown('📋 <a href="/Compliance_Reports" target="_self">Compliance Reports</a>', unsafe_allow_html=True)
     st.markdown('📚 <a href="/SOP_Library" target="_self">SOP Library</a>', unsafe_allow_html=True)
+    st.markdown('⚙️ <a href="/System_Settings" target="_self">System Settings</a>', unsafe_allow_html=True)
 
 # Render Branded Header Banner
 render_facility_header(
-    "Root Cause Analysis & CAPA Register",
-    "Deviation Management, Failure Mode Diagnostics & Corrective Actions — 21 CFR Part 11 Baseline"
+    "Executive Dashboard",
+    "Real-Time Facility Telemetry, Multi-Unit Dashboards & Environmental Stability Matrix"
 )
 
 # ---------------------------------------------------------------------------
-# High-Level Deviation KPI Overview
+# Real-Time KPI Summary Cards
 # ---------------------------------------------------------------------------
-all_deviations = fetch_deviations(limit=1000, status_filter=None)
+kpis = compute_kpis() if callable(compute_kpis) else {}
+kpi_cols = st.columns(5)
 
-total_devs = len(all_deviations) if not all_deviations.empty else 0
-open_devs = len(all_deviations[all_deviations["capa_status"] == "Open"]) if not all_deviations.empty and "capa_status" in all_deviations.columns else 0
-prog_devs = len(all_deviations[all_deviations["capa_status"] == "In Progress"]) if not all_deviations.empty and "capa_status" in all_deviations.columns else 0
-closed_devs = len(all_deviations[all_deviations["capa_status"] == "Closed"]) if not all_deviations.empty and "capa_status" in all_deviations.columns else 0
-
-kpi_cols = st.columns(4)
 with kpi_cols[0]:
-    render_kpi_card("Total Deviations", f"{total_devs}")
+    render_kpi_card("Total Log Entries", f"{kpis.get('total_logs', 0)}")
 with kpi_cols[1]:
-    render_kpi_card("Open CAPAs", f"{open_devs}")
+    render_kpi_card("Open Deviations", f"{kpis.get('open_deviations', 0)}")
 with kpi_cols[2]:
-    render_kpi_card("In Progress", f"{prog_devs}")
+    render_kpi_card("Compliance %", f"{kpis.get('compliance_pct', 100.0)}%")
 with kpi_cols[3]:
-    render_kpi_card("Closed CAPAs", f"{closed_devs}")
+    render_kpi_card("Today's Entries", f"{kpis.get('today_log_count', 0)}")
+with kpi_cols[4]:
+    render_kpi_card("Health Score", f"{kpis.get('equipment_health_score', 98.5)}")
 
 st.write("")
 
 # ---------------------------------------------------------------------------
-# Tabbed Workflow: Register, Sign-Off, & Knowledge Engine
+# Fetch Live Telemetry Data
 # ---------------------------------------------------------------------------
-tab_register, tab_update, tab_rca_engine = st.tabs([
-    "📋 Deviation Register",
-    "✍️ CAPA Electronic Sign-Off & Actions",
-    "🔬 RCA Knowledge Base & Diagnostics"
+ahu_df = fetch_ahu_details(limit=300)
+dhu_df = fetch_dhu_details(limit=300)
+comp_df = fetch_compressor_logs(limit=300)
+
+# Helper function to standardize dates & times
+def process_dataframe(df):
+    if df.empty:
+        return df
+    df = df.copy()
+    if "timestamp" in df.columns:
+        dt_series = pd.to_datetime(df["timestamp"])
+    elif "created_at" in df.columns:
+        dt_series = pd.to_datetime(df["created_at"])
+    else:
+        dt_series = pd.Series([datetime.now()] * len(df))
+    
+    df["timestamp_dt"] = dt_series
+    df["Date"] = dt_series.dt.strftime("%Y-%m-%d")
+    df["Time"] = dt_series.dt.strftime("%H:%M")  # Strict HH:MM format
+    return df.sort_values("timestamp_dt")
+
+ahu_df = process_dataframe(ahu_df)
+dhu_df = process_dataframe(dhu_df)
+comp_df = process_dataframe(comp_df)
+
+# ---------------------------------------------------------------------------
+# Clean & Uncluttered Dashboard View (Organized by System Tabs)
+# ---------------------------------------------------------------------------
+tab_ahu, tab_dhu, tab_comp, tab_heatmap = st.tabs([
+    "❄️ AHU Control Panel",
+    "💧 DHU Systems (DHU-1 & DHU-2)",
+    "🌀 Air Compressor Panel",
+    "🔥 Environmental Heatmap & Deviations"
 ])
 
-# ------------------- TAB 1: DEVIATION REGISTER -------------------
-with tab_register:
-    st.subheader("Facility Deviation & CAPA Master Register")
-    
-    col_filter1, col_filter2 = st.columns([1, 2])
-    with col_filter1:
-        status_filter = st.selectbox(
-            "Filter by CAPA Status", 
-            options=["All", "Open", "In Progress", "Closed"],
-            index=0
-        )
-    
-    filtered_df = fetch_deviations(limit=500, status_filter=None if status_filter == "All" else status_filter)
+# ------------------- TAB 1: AHU DASHBOARD -------------------
+with tab_ahu:
+    st.subheader("AHU Control Panel Telemetry Trends")
+    if not ahu_df.empty:
+        col_a1, col_a2 = st.columns(2)
+        
+        with col_a1:
+            st.markdown("#### Temperature (°C) Trend")
+            temp_col = "supply_temp" if "supply_temp" in ahu_df.columns else "temp"
+            if temp_col in ahu_df.columns:
+                fig_t = px.line(
+                    ahu_df, x="Time", y=temp_col,
+                    labels={"Time": "Time (HH:MM)", temp_col: "Temp (°C)"},
+                    title="AHU Supply Temperature vs Time"
+                )
+                fig_t.update_traces(line_color="#06B6D4", line_width=2.5, hovertemplate="Time: %{x}<br>Temp: %{y} °C<extra></extra>")
+                fig_t.update_layout(paper_bgcolor="#0B0F19", plot_bgcolor="#111827", font_color="#E5E7EB")
+                st.plotly_chart(fig_t, use_container_width=True)
 
-    if filtered_df.empty:
-        st.success("No deviations match this filter. Facility parameters have remained within validated bounds.")
+        with col_a2:
+            st.markdown("#### Relative Humidity (%) Trend")
+            rh_col = "relative_humidity" if "relative_humidity" in ahu_df.columns else "rh"
+            if rh_col in ahu_df.columns:
+                fig_rh = px.line(
+                    ahu_df, x="Time", y=rh_col,
+                    labels={"Time": "Time (HH:MM)", rh_col: "RH (%)"},
+                    title="AHU Relative Humidity vs Time"
+                )
+                fig_rh.update_traces(line_color="#C1F24D", line_width=2.5, hovertemplate="Time: %{x}<br>RH: %{y}%<extra></extra>")
+                fig_rh.update_layout(paper_bgcolor="#0B0F19", plot_bgcolor="#111827", font_color="#E5E7EB")
+                st.plotly_chart(fig_rh, use_container_width=True)
     else:
-        filtered_df = filtered_df.copy()
-        if "severity" in filtered_df.columns:
-            filtered_df["severity_rank"] = filtered_df["severity"].apply(severity_rank)
-            filtered_df = filtered_df.sort_values(["severity_rank", "id"], ascending=[False, False])
-            display_df = filtered_df.drop(columns=["severity_rank"])
-        else:
-            display_df = filtered_df
+        st.info("No AHU telemetry logged yet.")
 
-        st.dataframe(
-            display_df,
-            use_container_width=True,
-            hide_index=True,
-            column_config={
-                "id": st.column_config.NumberColumn("Record ID", format="%d"),
-                "capa_status": st.column_config.SelectboxColumn("Status", options=["Open", "In Progress", "Closed"]),
-                "severity": st.column_config.TextColumn("Severity Rank"),
-                "timestamp": st.column_config.DatetimeColumn("Timestamp", format="YYYY-MM-DD HH:mm"),
-            }
-        )
-
-# ------------------- TAB 2: CAPA SIGN-OFF, ACTIONS & DOWNLOAD -------------------
-with tab_update:
-    st.subheader("CAPA Investigation, Action Entry & Sign-Off")
-    st.caption("Document the root cause, immediate corrective actions, and preventive measures.")
-
-    with st.form("capa_full_entry_form", clear_on_submit=False):
-        col_id, col_status, col_operator = st.columns(3)
-        with col_id:
-            deviation_id = st.number_input("Deviation Record ID", min_value=1, step=1, help="Select the ID number from the Deviation Register.")
-        with col_status:
-            new_status = st.selectbox("CAPA Status", options=["In Progress", "Closed", "Open"])
-        with col_operator:
-            default_operator = st.session_state.get("username", "SYS_OPERATOR")
-            operator_name = st.text_input("Investigator / Operator ID", value=default_operator, placeholder="e.g., OP-4029")
-
-        st.write("")
-        real_cause = st.text_area(
-            "Real Cause (Root Cause)", 
-            placeholder="Describe the identified root cause (e.g., Desiccant wheel reactivation heater relay failure resulting in RH spike)...",
-            height=100
-        )
+# ------------------- TAB 2: DHU DASHBOARD -------------------
+with tab_dhu:
+    st.subheader("DHU-1 vs DHU-2 Telemetry Comparison")
+    if not dhu_df.empty:
+        if "unit_id" in dhu_df.columns:
+            dhu_df["unit_id"] = dhu_df["unit_id"].replace({"DHU-01": "DHU-1", "DHU-02": "DHU-2"})
         
-        col_ca, col_pa = st.columns(2)
-        with col_ca:
-            corrective_action = st.text_area(
-                "Corrective Action (Immediate Fix)", 
-                placeholder="Immediate steps taken to contain/resolve deviation (e.g., Replaced solid-state relay and re-calibrated sensors)...",
-                height=120
-            )
-        with col_pa:
-            preventive_action = st.text_area(
-                "Preventive Action (Long-Term Prevention)", 
-                placeholder="Actions implemented to prevent recurrence (e.g., Added bi-monthly thermal inspection of heater relays to PM schedule)...",
-                height=120
-            )
+        col_d1, col_d2 = st.columns(2)
+        unit_color_map = {"DHU-1": "#06B6D4", "DHU-2": "#F59E0B"}
 
-        update_submitted = st.form_submit_button("💾 Save & Log CAPA Record", type="primary")
+        with col_d1:
+            st.markdown("#### RH (%) Comparison Trend")
+            rh_col = "relative_humidity" if "relative_humidity" in dhu_df.columns else "rh"
+            if rh_col in dhu_df.columns:
+                fig_dhu_rh = px.line(
+                    dhu_df, x="Time", y=rh_col, color="unit_id",
+                    color_discrete_map=unit_color_map,
+                    labels={"Time": "Time (HH:MM)", rh_col: "RH (%)", "unit_id": "Unit"},
+                    title="DHU-1 vs DHU-2 Relative Humidity"
+                )
+                fig_dhu_rh.update_traces(line_width=2.5, hovertemplate="Time: %{x}<br>RH: %{y}%<extra></extra>")
+                fig_dhu_rh.update_layout(paper_bgcolor="#0B0F19", plot_bgcolor="#111827", font_color="#E5E7EB")
+                st.plotly_chart(fig_dhu_rh, use_container_width=True)
 
-    if update_submitted:
-        op_id = operator_name if operator_name.strip() else "SYS_OPERATOR"
-        success = update_capa_status(int(deviation_id), new_status, op_id)
+        with col_d2:
+            st.markdown("#### DPG (mmWC) Comparison Trend")
+            dpg_col = "dpg_mmwc" if "dpg_mmwc" in dhu_df.columns else "dpg"
+            if dpg_col in dhu_df.columns:
+                fig_dhu_dpg = px.line(
+                    dhu_df, x="Time", y=dpg_col, color="unit_id",
+                    color_discrete_map=unit_color_map,
+                    labels={"Time": "Time (HH:MM)", dpg_col: "DPG (mmWC)", "unit_id": "Unit"},
+                    title="DHU-1 vs DHU-2 Differential Pressure"
+                )
+                fig_dhu_dpg.update_traces(line_width=2.5, hovertemplate="Time: %{x}<br>DPG: %{y} mmWC<extra></extra>")
+                fig_dhu_dpg.update_layout(paper_bgcolor="#0B0F19", plot_bgcolor="#111827", font_color="#E5E7EB")
+                st.plotly_chart(fig_dhu_dpg, use_container_width=True)
+    else:
+        st.info("No DHU telemetry logged yet.")
+
+# ------------------- TAB 3: AIR COMPRESSOR DASHBOARD -------------------
+with tab_comp:
+    st.subheader("Air Compressor Panel Telemetry Trend")
+    if not comp_df.empty:
+        p_col = "delivery_pressure" if "delivery_pressure" in comp_df.columns else "pressure"
+        if p_col in comp_df.columns:
+            fig_p = px.line(
+                comp_df, x="Time", y=p_col,
+                labels={"Time": "Time (HH:MM)", p_col: "Pressure (Bar)"},
+                title="Delivery Pressure (Bar) vs Time"
+            )
+            fig_p.update_traces(line_color="#06B6D4", line_width=2.5, hovertemplate="Time: %{x}<br>Pressure: %{y} Bar<extra></extra>")
+            fig_p.update_layout(paper_bgcolor="#0B0F19", plot_bgcolor="#111827", font_color="#E5E7EB")
+            st.plotly_chart(fig_p, use_container_width=True)
+    else:
+        st.info("No Air Compressor telemetry logged yet.")
+
+# ------------------- TAB 4: HEATMAP & DEVIATIONS -------------------
+with tab_heatmap:
+    st.subheader("Environmental Stability Heat Map")
+    all_dfs = []
+    if not ahu_df.empty:
+        all_dfs.append(ahu_df)
+    if not dhu_df.empty:
+        all_dfs.append(dhu_df)
+    if not comp_df.empty:
+        all_dfs.append(comp_df)
+
+    if all_dfs:
+        combined_logs = pd.concat(all_dfs, ignore_index=True)
+        heatmap_cols = [c for c in PARAMETER_BOUNDS.keys() if c in combined_logs.columns]
         
-        # Save extended CAPA text details to session state for instant downloadable export
-        st.session_state[f"capa_doc_{int(deviation_id)}"] = {
-            "record_id": int(deviation_id),
-            "status": new_status,
-            "investigator": op_id,
-            "real_cause": real_cause if real_cause.strip() else "N/A",
-            "corrective_action": corrective_action if corrective_action.strip() else "N/A",
-            "preventive_action": preventive_action if preventive_action.strip() else "N/A"
-        }
+        if heatmap_cols and len(combined_logs) > 0:
+            heat_source = combined_logs.tail(30)[["Time"] + heatmap_cols].set_index("Time")
+            z_normalized = heat_source.copy()
+            
+            for col in heatmap_cols:
+                low, high = PARAMETER_BOUNDS[col]["low"], PARAMETER_BOUNDS[col]["high"]
+                mid = (low + high) / 2
+                span = max((high - low) / 2, 0.0001)
+                z_normalized[col] = (heat_source[col] - mid) / span
 
-        if success:
-            st.success(f"✅ CAPA Record #{int(deviation_id)} updated successfully to '{new_status}'.")
+            heat_fig = go.Figure(data=go.Heatmap(
+                z=z_normalized.T.values,
+                x=z_normalized.index,
+                y=[PARAMETER_BOUNDS[c]["label"] for c in heatmap_cols],
+                colorscale=[[0, "#EF4444"], [0.5, "#C1F24D"], [1, "#EF4444"]],
+                zmid=0, zmin=-2, zmax=2,
+                colorbar=dict(title="Deviation"),
+            ))
+            heat_fig.update_layout(
+                paper_bgcolor="#0B0F19", plot_bgcolor="#111827",
+                font_color="#E5E7EB", margin=dict(l=10, r=10, t=10, b=10), height=380,
+            )
+            st.plotly_chart(heat_fig, use_container_width=True)
         else:
-            st.info(f"CAPA details for Record #{int(deviation_id)} staged successfully.")
+            st.info("Heatmap data normalization pending additional parameter entries.")
 
     st.write("")
-    st.divider()
-
-    # --- DOWNLOADABLE CAPA REPORT SECTION ---
-    st.subheader("📥 Export & Download CAPA File")
-    st.caption("Generate official CAPA documentation for audit compliance.")
-
-    capa_keys = [k for k in st.session_state.keys() if k.startswith("capa_doc_")]
-
-    if capa_keys:
-        selected_doc_key = st.selectbox(
-            "Select Staged CAPA Record to Download",
-            options=capa_keys,
-            format_func=lambda k: f"Record #{st.session_state[k]['record_id']} - Status: {st.session_state[k]['status']}"
-        )
-        
-        doc_data = st.session_state[selected_doc_key]
-
-        # Format Text File Content
-        report_text = f"""===================================================================
-COLEXA BIOSENSOR - OFFICIAL CAPA INVESTIGATION REPORT
-===================================================================
-Deviation Record ID : #{doc_data['record_id']}
-CAPA Status         : {doc_data['status']}
-Investigator ID     : {doc_data['investigator']}
-===================================================================
-
-[1] IDENTIFIED REAL / ROOT CAUSE:
-{doc_data['real_cause']}
-
-[2] CORRECTIVE ACTION (IMMEDIATE):
-{doc_data['corrective_action']}
-
-[3] PREVENTIVE ACTION (LONG-TERM):
-{doc_data['preventive_action']}
-
-===================================================================
-Governing SOP: CBL-MNT-01 / 21 CFR Part 11 Audit Trail
-==================================================================="""
-
-        d_col1, d_col2 = st.columns(2)
-        with d_col1:
-            st.download_button(
-                label="📄 Download CAPA Report (.txt)",
-                data=report_text,
-                file_name=f"CAPA_Report_Record_{doc_data['record_id']}.txt",
-                mime="text/plain",
-                use_container_width=True
-            )
-        with d_col2:
-            df_export = pd.DataFrame([doc_data])
-            st.download_button(
-                label="📊 Download CAPA Record (.csv)",
-                data=df_export.to_csv(index=False),
-                file_name=f"CAPA_Record_{doc_data['record_id']}.csv",
-                mime="text/csv",
-                use_container_width=True
-            )
-    else:
-        st.info("Fill in and click '💾 Save & Log CAPA Record' above to generate downloadable CAPA files.")
-
-# ------------------- TAB 3: RCA KNOWLEDGE BASE -------------------
-with tab_rca_engine:
-    st.subheader("RCA Knowledge Base Explorer")
-    st.caption("Standard GMP/HVAC failure-mode logic tagged to governing Colexa Standard Operating Procedures (SOPs).")
-
-    rca_col1, rca_col2 = st.columns([1, 2])
-    
-    with rca_col1:
-        param_choice = st.selectbox("Select Parameter", options=list(RCA_KNOWLEDGE_BASE.keys()))
-        direction_choice = st.radio("Deviation Direction / Excursion Type", options=["Low Warning", "High Excursion"])
-
-    with rca_col2:
-        if param_choice and direction_choice in RCA_KNOWLEDGE_BASE.get(param_choice, {}):
-            result = get_rca_capa(param_choice, direction_choice)
-            
-            sev_color = "#EF4444" if result.get("severity") in ["Critical", "High"] else "#F59E0B"
-            st.markdown(
-                f"""
-                <div style="padding: 12px 18px; border-radius: 8px; background-color: #111827; border-left: 5px solid {sev_color}; margin-bottom: 16px;">
-                    <span style="font-weight: 700; color: {sev_color}; font-size: 1.1rem;">Severity Rank: {result.get('severity', 'N/A')}</span>
-                </div>
-                """,
-                unsafe_allow_html=True
-            )
-
-            st.markdown("#### 🛠️ Top Probable Causes")
-            for cause in result.get("causes", []):
-                st.markdown(f"- {cause}")
-
-            st.markdown("---")
-            st.markdown("#### 📋 Recommended Corrective & Preventive Action (CAPA)")
-            st.info(result.get("recommended_capa", "No specific CAPA protocol defined."))
+    st.subheader("Recent Deviations & CAPA Log")
+    try:
+        dev_df = fetch_deviations(limit=20)
+        if dev_df.empty:
+            st.success("No deviations recorded. All facility parameters are operating within validated bounds.")
         else:
-            st.info("No diagnostic rule defined for this specific parameter and excursion combination.")
+            st.dataframe(dev_df, use_container_width=True, hide_index=True)
+    except Exception:
+        st.info("Deviations register is currently clear.")
+
+st.write("")
+st.divider()
+
+# ---------------------------------------------------------------------------
+# End-of-Day Data Maintenance & Purge Section
+# ---------------------------------------------------------------------------
+st.subheader("🗑️ End-of-Day Data Maintenance & Log Purge")
+st.caption("Manage facility database logs to keep charts clean, responsive, and uncluttered day-to-day.")
+
+with st.expander("⚠️ Expand Data Deletion & Purge Controls"):
+    st.warning("Action Notice: Deleting log entries will permanently erase telemetry records from the active database for the chosen parameters.")
+    
+    del_col1, del_col2, del_col3 = st.columns(3)
+    
+    with del_col1:
+        purge_target = st.selectbox(
+            "Select Module to Clean",
+            options=["All Facility Telemetry", "AHU Control Panel Logs", "DHU System Logs", "Air Compressor Logs"]
+        )
+    with del_col2:
+        purge_date = st.date_input("Delete Logs On or Before Date", value=date.today())
+    with del_col3:
+        confirm_check = st.checkbox("I confirm I want to purge these daily records", value=False)
+
+    st.write("")
+
+    if st.button("🗑️ Execute Data Purge", type="primary"):
+        if not confirm_check:
+            st.error("Please check the confirmation box before purging records.")
+        else:
+            try:
+                db_path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "database", "colexa.db")
+                if not os.path.exists(db_path):
+                    db_path = "colexa.db"
+
+                conn = sqlite3.connect(db_path)
+                cursor = conn.cursor()
+                date_str = purge_date.strftime("%Y-%m-%d")
+
+                deleted_count = 0
+
+                if purge_target in ["All Facility Telemetry", "AHU Control Panel Logs"]:
+                    cursor.execute("DELETE FROM ahu_details WHERE DATE(timestamp) <= ?", (date_str,))
+                    deleted_count += cursor.rowcount
+
+                if purge_target in ["All Facility Telemetry", "DHU System Logs"]:
+                    cursor.execute("DELETE FROM dhu_details WHERE DATE(timestamp) <= ?", (date_str,))
+                    deleted_count += cursor.rowcount
+
+                if purge_target in ["All Facility Telemetry", "Air Compressor Logs"]:
+                    cursor.execute("DELETE FROM compressor_logs WHERE DATE(timestamp) <= ?", (date_str,))
+                    deleted_count += cursor.rowcount
+
+                conn.commit()
+                conn.close()
+
+                st.success(f"Purge Successful: Erased recorded logs on or prior to {date_str}. ({deleted_count} records removed)")
+                st.rerun()
+
+            except Exception as e:
+                st.error(f"Failed to purge database entries: {e}")

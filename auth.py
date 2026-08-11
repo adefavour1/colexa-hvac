@@ -17,8 +17,8 @@ def check_auth():
             
             if submit_btn:
                 # Fetch secrets safely with defaults
-                expected_user = st.secrets.get("username", "admin")
-                expected_pass = st.secrets.get("password", "colexa2026")
+                expected_user = st.secrets.get("username", "colexa")
+                expected_pass = st.secrets.get("password", "cbl@cbl123")
                 
                 # Check credentials (if username isn't strictly in secrets, validate password)
                 if password_input == expected_pass and (not expected_user or username_input == expected_user):

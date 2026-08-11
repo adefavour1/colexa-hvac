@@ -1,25 +1,71 @@
 """SOP Library - reference library of the facility's governing operating procedures."""
+import os
+import base64
 import streamlit as st
+
 from auth import check_auth, render_logout_sidebar
+from utils.ui_components import inject_global_css, render_facility_header
 
-st.set_page_config(page_title="Executive Dashboard", layout="wide")
+# 1. Page Configuration (Called only once)
+st.set_page_config(page_title="SOP Library | COLEXA", page_icon="📖", layout="wide")
 
-# Block access if user manually clears session or logs out
+# 2. Authentication Gatekeeper
 if not check_auth():
     st.stop()
 
 render_logout_sidebar()
-
-if st.button("⬅️ Back to Home page"):
-    st.switch_page("app.py")
-
-import streamlit as st
-
-from utils.ui_components import inject_global_css, render_facility_header
-
-st.set_page_config(page_title="SOP Library | COLEXA", page_icon="\U0001F4D6", layout="wide")
 inject_global_css()
-render_facility_header("SOP Library", "Governing Operating Procedures \u2014 Colexa Biosensor Ltd")
+
+# ---------------------------------------------------------------------------
+# Sidebar Navigation & Branding
+# ---------------------------------------------------------------------------
+with st.sidebar:
+    assets_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "assets")
+    possible_logos = ["logo.jpg", "logo.png", "colexa_logo.png", "logo.svg"]
+    
+    logo_path = None
+    for f in possible_logos:
+        p = os.path.join(assets_dir, f)
+        if os.path.exists(p):
+            logo_path = p
+            break
+
+    if logo_path and logo_path.endswith(('.jpg', '.jpeg', '.png')):
+        with open(logo_path, "rb") as image_file:
+            encoded_string = base64.b64encode(image_file.read()).decode()
+        sidebar_logo_html = f'<img src="data:image/png;base64,{encoded_string}" style="height: 38px; width: auto; object-fit: contain;" alt="Colexa Logo"/>'
+    elif logo_path and logo_path.endswith('.svg'):
+        with open(logo_path, "r", encoding="utf-8") as f:
+            sidebar_logo_html = f'<div style="height:38px; width:38px;">{f.read()}</div>'
+    else:
+        sidebar_logo_html = '<span style="font-size: 26px;">📖</span>'
+
+    # Side-by-side Logo and Title Layout
+    st.markdown(
+        f"""
+        <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 6px;">
+            {sidebar_logo_html}
+            <span style="font-weight: 800; font-size: 1.15rem; letter-spacing: 1px; color: inherit;">COLEXA BIOSENSOR</span>
+        </div>
+        """,
+        unsafe_allow_html=True
+    )
+    
+    st.caption("HVAC & Facility Infrastructure Matrix")
+    st.divider()
+    st.markdown("### Navigation Controls")
+    
+    st.markdown('🏠 <a href="/" target="_self">Home Overview</a>', unsafe_allow_html=True)
+    st.markdown('📈 <a href="/Executive_Dashboard" target="_self">Executive Dashboard</a>', unsafe_allow_html=True)
+    st.markdown('❄️ <a href="/AHU_Monitoring" target="_self">AHU Monitoring</a>', unsafe_allow_html=True)
+    st.markdown('🌀 <a href="/Air_Compressor" target="_self">Air Compressor</a>', unsafe_allow_html=True)
+    st.markdown('💧 <a href="/DHU_Monitoring" target="_self">DHU Monitoring</a>', unsafe_allow_html=True)
+    st.markdown('🔍 <a href="/RCA_and_CAPA" target="_self">RCA & CAPA Engine</a>', unsafe_allow_html=True)
+    st.markdown('📋 <a href="/Compliance_Reports" target="_self">Compliance Reports</a>', unsafe_allow_html=True)
+    st.markdown('📚 <a href="/SOP_Library" target="_self">SOP Library</a>', unsafe_allow_html=True)
+
+# Render Branded Header Banner
+render_facility_header("SOP Library", "Governing Operating Procedures — Colexa Biosensor Ltd")
 
 st.caption(
     "This library reflects the three operating procedures currently on file for the utilities monitored by this "
@@ -28,11 +74,11 @@ st.caption(
 )
 
 sop_tab_ahu, sop_tab_compressor, sop_tab_dhu = st.tabs([
-    "CBL-MNT-02 \u2014 AHU", "CBL-MNT-03 \u2014 Air Compressor", "CBL-MNT-05 \u2014 Dehumidifier",
+    "CBL-MNT-02 — AHU", "CBL-MNT-03 — Air Compressor", "CBL-MNT-05 — Dehumidifier",
 ])
 
 with sop_tab_ahu:
-    st.markdown("### CBL-MNT-02 \u2014 Standard Operating Procedure of AHU")
+    st.markdown("### CBL-MNT-02 — Standard Operating Procedure of AHU")
     st.markdown("**Purpose:** Specifies how the Air Handling Unit should be operated.")
     st.markdown("**Scope:** Applicable to the operation of all AHUs in the Colexa Biosensor Ltd factory.")
     st.markdown("**Responsibility:** Engineering executes and implements this SOP; QA is responsible for compliance oversight.")
@@ -42,11 +88,11 @@ with sop_tab_ahu:
         "Check that the doors are completely closed to avoid air leakage.",
         "Check that the fresh air dampers are all open for air flow.",
         "Check condensate drainpipe, clarity of the drain line and floor drain for easy draining of the condensate.",
-        "Switch ON the AHU main panel \u2014 green indicator lamps come up.",
-        "Press the start push button on the main panel \u2014 green lamps turn OFF, red lamps turn ON the control panel.",
+        "Switch ON the AHU main panel — green indicator lamps come up.",
+        "Press the start push button on the main panel — green lamps turn OFF, red lamps turn ON the control panel.",
         "Turn ON the timer panel main breaker and the monitoring hygrometer on each unit comes ON.",
         "Check for any abnormal noise or vibrations.",
-        "Stop the AHU from the starter panel by pressing the stop push button \u2014 green lamps come up.",
+        "Stop the AHU from the starter panel by pressing the stop push button — green lamps come up.",
         "Turn OFF the panel main switch.",
         "Put OFF the timer panel main breaker and the monitoring hygrometer on each unit.",
     ]
@@ -54,7 +100,7 @@ with sop_tab_ahu:
         st.markdown(f"{idx}. {step}")
 
 with sop_tab_compressor:
-    st.markdown("### CBL-MNT-03 \u2014 Air Compressor SOP")
+    st.markdown("### CBL-MNT-03 — Air Compressor SOP")
     st.markdown("**Purpose:** Specifies how to properly operate the two Fabtech Air Compressor systems.")
     st.markdown("**Scope:** Applicable to the operation of the Air Compressor at Colexa Biosensor Ltd factory.")
     st.markdown("**Responsibility:** Engineering executes and implements this SOP; QA is responsible for compliance oversight.")
@@ -84,7 +130,7 @@ with sop_tab_compressor:
         st.markdown(f"{idx}. {step}")
 
 with sop_tab_dhu:
-    st.markdown("### CBL-MNT-05 \u2014 Dehumidifier SOP")
+    st.markdown("### CBL-MNT-05 — Dehumidifier SOP")
     st.markdown("**Purpose:** Specifies how the Dehumidifier (DHU) should be operated.")
     st.markdown("**Scope:** Applicable to the operation of the DHU at Colexa Biosensor Ltd factory.")
     st.markdown("**Responsibility:** Engineering executes and implements this SOP; QA is responsible for compliance oversight.")
@@ -93,9 +139,9 @@ with sop_tab_dhu:
     dhu_start_steps = [
         "Remove the fresh air and heat reactant filters and clean properly.",
         "Couple back the filters firmly.",
-        "Turn ON the DHU and AHU control panel switch \u2014 green indicator lights come up.",
+        "Turn ON the DHU and AHU control panel switch — green indicator lights come up.",
         "Wait a few seconds for the DHU display control panel to boot.",
-        "After booting completes, press the green start button \u2014 red indicator lights come ON.",
+        "After booting completes, press the green start button — red indicator lights come ON.",
         "Go to the dehumidifier and press the DHU K1 button to set it in operation.",
         "Return to the DHU display control panel to set temperature and humidity parameters.",
         "Enter the security password on the control panel for access to set parameters.",
@@ -109,8 +155,8 @@ with sop_tab_dhu:
     st.markdown("**Shutdown Procedure:**")
     dhu_shutdown_steps = [
         "Press the DHU K1 button on the dehumidifier to shut down.",
-        "Allow the system temperature on the dehumidifier screen to fall between 45\u201350\u00b0C.",
-        "Return to the main control panel and press the stop (red) button \u2014 green indicator lights come up.",
+        "Allow the system temperature on the dehumidifier screen to fall between 45–50°C.",
+        "Return to the main control panel and press the stop (red) button — green indicator lights come up.",
         "Turn off the panel control switch.",
         "Ensure all safety regulations are strictly followed.",
     ]
@@ -119,7 +165,7 @@ with sop_tab_dhu:
 
 st.write("")
 st.info(
-    "These SOPs govern equipment start-up/shutdown only. The RCA/CAPA engine on the **RCA and CAPA** page uses "
+    "These SOPs govern equipment start-up/shutdown only. The RCA/CAPA engine on the **RCA & CAPA** page uses "
     "standard GMP/HVAC engineering logic tagged back to these SOP numbers for corrective actions, since the SOPs "
     "themselves do not contain numbered failure-mode tables. Review and formal QA approval is recommended before "
     "treating generated CAPA text as validated procedure."

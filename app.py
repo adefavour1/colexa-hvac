@@ -16,28 +16,15 @@ st.set_page_config(
     initial_sidebar_state="expanded",
 )
 
-# Minimal safe styles that preserve the navigation sidebar and collapse toggle
-st.markdown("""
-<style>
-footer {visibility: hidden;}
-</style>
-""", unsafe_allow_html=True)
+st.markdown("<style>footer {visibility: hidden;}</style>", unsafe_allow_html=True)
 
-# 2. Authentication Gatekeeper
+# 2. Authentication Gatekeeper (Stops execution and hides sidebar if not logged in)
 if not check_auth():
     st.stop()
 
+# 3. Sidebar & Navigation (Only runs after successful authentication)
 render_logout_sidebar()
 
-# Startup: ensure database schema exists
-if "db_ready" not in st.session_state:
-    st.session_state["db_ready"] = initialize_database()
-
-inject_global_css()
-
-# ---------------------------------------------------------------------------
-# Sidebar Navigation Panel (Using same-tab HTML links)
-# ---------------------------------------------------------------------------
 with st.sidebar:
     logo_file = Path("assets/logo.png")
     if logo_file.exists():
@@ -58,7 +45,13 @@ with st.sidebar:
     st.markdown('📋 <a href="/Compliance_Reports" target="_self">Compliance Reports</a>', unsafe_allow_html=True)
     st.markdown('📚 <a href="/SOP_Library" target="_self">SOP Library</a>', unsafe_allow_html=True)
 
-# 3. Main Page Content
+# Startup: ensure database schema exists
+if "db_ready" not in st.session_state:
+    st.session_state["db_ready"] = initialize_database()
+
+inject_global_css()
+
+# 4. Main Page Content
 render_facility_header(
     "Facility Home & Overview",
     "Colexa Biosensor HVAC & Infrastructure Monitoring Matrix"

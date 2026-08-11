@@ -1,20 +1,6 @@
 """
 AHU Monitoring - Air Handling Unit Control Panel telemetry, trends, and log history.
 """
-import streamlit as st
-from auth import check_auth, render_logout_sidebar
-
-st.set_page_config(page_title="Executive Dashboard", layout="wide")
-
-# Block access if user manually clears session or logs out
-if not check_auth():
-    st.stop()
-
-render_logout_sidebar()
-
-if st.button("⬅️ Back to Home page"):
-    st.switch_page("app.py")
-
 import os
 import base64
 from datetime import datetime
@@ -22,6 +8,7 @@ import pandas as pd
 import plotly.express as px
 import streamlit as st
 
+from auth import check_auth, render_logout_sidebar
 from database.operations import insert_ahu_detail, fetch_ahu_details
 from utils.ui_components import (
     inject_global_css, render_facility_header, render_deviation_alert,
@@ -29,12 +16,20 @@ from utils.ui_components import (
 )
 from utils.rca_engine import get_rca_capa
 
+# 1. Single Page Configuration
 st.set_page_config(page_title="AHU Monitoring | COLEXA", page_icon="❄️", layout="wide")
+
+# 2. Authentication Gatekeeper (Stops execution if not logged in)
+if not check_auth():
+    st.stop()
+
 inject_global_css()
 
 # ---------------------------------------------------------------------------
 # Sidebar Navigation & Branding
 # ---------------------------------------------------------------------------
+render_logout_sidebar()
+
 with st.sidebar:
     assets_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "assets")
     possible_logos = ["logo.jpg", "logo.png", "colexa_logo.png", "logo.svg"]
@@ -68,7 +63,16 @@ with st.sidebar:
     
     st.caption("HVAC & Facility Infrastructure Matrix")
     st.divider()
-    st.caption("Navigate using the pages listed above.")
+    st.markdown("### Navigation Controls")
+    
+    st.markdown('🏠 <a href="/" target="_self">Home Overview</a>', unsafe_allow_html=True)
+    st.markdown('📈 <a href="/Executive_Dashboard" target="_self">Executive Dashboard</a>', unsafe_allow_html=True)
+    st.markdown('❄️ <a href="/AHU_Monitoring" target="_self">AHU Monitoring</a>', unsafe_allow_html=True)
+    st.markdown('🌀 <a href="/Air_Compressor" target="_self">Air Compressor</a>', unsafe_allow_html=True)
+    st.markdown('💧 <a href="/DHU_Monitoring" target="_self">DHU Monitoring</a>', unsafe_allow_html=True)
+    st.markdown('🔍 <a href="/RCA_and_CAPA" target="_self">RCA & CAPA Engine</a>', unsafe_allow_html=True)
+    st.markdown('📋 <a href="/Compliance_Reports" target="_self">Compliance Reports</a>', unsafe_allow_html=True)
+    st.markdown('📚 <a href="/SOP_Library" target="_self">SOP Library</a>', unsafe_allow_html=True)
 
 # Render Branded Header Banner
 render_facility_header("AHU Monitoring", "Governing SOP: CBL-MNT-02 — AHU Operating Procedure")
@@ -94,7 +98,7 @@ if submitted:
         "unit_id": unit_id,
         "supply_temp": temp_val,
         "relative_humidity": rh_val,
-        "operator_id": st.session_state.get("operator_id", "SYS_OPERATOR"),
+        "operator_id": st.session_state.get("username", "SYS_OPERATOR"),
     }
     new_id = insert_ahu_detail(entry)
     if new_id is None:

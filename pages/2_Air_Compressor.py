@@ -1,20 +1,6 @@
 """
 Air Compressor Monitoring - Single-parameter (Bar) telemetry entry, pressure trends, and log history.
 """
-import streamlit as st
-from auth import check_auth, render_logout_sidebar
-
-st.set_page_config(page_title="Executive Dashboard", layout="wide")
-
-# Block access if user manually clears session or logs out
-if not check_auth():
-    st.stop()
-
-render_logout_sidebar()
-
-if st.button("⬅️ Back to Home page"):
-    st.switch_page("app.py")
-
 import os
 import base64
 from datetime import datetime
@@ -22,6 +8,7 @@ import pandas as pd
 import plotly.express as px
 import streamlit as st
 
+from auth import check_auth, render_logout_sidebar
 from database.operations import insert_compressor_log, fetch_compressor_logs
 from utils.ui_components import (
     inject_global_css, render_facility_header, render_deviation_alert,
@@ -29,7 +16,14 @@ from utils.ui_components import (
 )
 from utils.rca_engine import get_rca_capa
 
+# 1. Page Configuration (Called only once)
 st.set_page_config(page_title="Air Compressor | COLEXA", page_icon="🌀", layout="wide")
+
+# 2. Authentication Gatekeeper
+if not check_auth():
+    st.stop()
+
+render_logout_sidebar()
 inject_global_css()
 
 # ---------------------------------------------------------------------------
@@ -68,13 +62,22 @@ with st.sidebar:
     
     st.caption("HVAC & Facility Infrastructure Matrix")
     st.divider()
-    st.caption("Navigate using the pages listed above.")
+    st.markdown("### Navigation Controls")
+    
+    st.markdown('🏠 <a href="/" target="_self">Home Overview</a>', unsafe_allow_html=True)
+    st.markdown('📈 <a href="/Executive_Dashboard" target="_self">Executive Dashboard</a>', unsafe_allow_html=True)
+    st.markdown('❄️ <a href="/AHU_Monitoring" target="_self">AHU Monitoring</a>', unsafe_allow_html=True)
+    st.markdown('🌀 <a href="/Air_Compressor" target="_self">Air Compressor</a>', unsafe_allow_html=True)
+    st.markdown('💧 <a href="/DHU_Monitoring" target="_self">DHU Monitoring</a>', unsafe_allow_html=True)
+    st.markdown('🔍 <a href="/RCA_and_CAPA" target="_self">RCA & CAPA Engine</a>', unsafe_allow_html=True)
+    st.markdown('📋 <a href="/Compliance_Reports" target="_self">Compliance Reports</a>', unsafe_allow_html=True)
+    st.markdown('📚 <a href="/SOP_Library" target="_self">SOP Library</a>', unsafe_allow_html=True)
 
 # Render Branded Header Banner
 render_facility_header("Air Compressor Monitoring", "Governing SOP: CBL-MNT-03 — Air Compressor Operating Procedure")
 
 # Direct User Instruction
-st.info("please fill in the input data below.")
+st.info("Please fill in the input data below.")
 
 # Compressor Panel Selection
 unit_id = st.selectbox("Select Compressor Unit", options=["Air Compressor Panel"])
@@ -84,14 +87,13 @@ st.subheader("Detailed Compressor Telemetry Entry")
 # Form: Pressure (Bar)
 with st.form("compressor_detail_form"):
     pressure_val = st.number_input("Pressure (Bar)", value=6.0, step=0.1)
-
     submitted = st.form_submit_button("🌀 Log Compressor Details")
 
 if submitted:
     entry = {
         "unit_id": unit_id,
         "delivery_pressure": pressure_val,
-        "operator_id": st.session_state.get("operator_id", "SYS_OPERATOR"),
+        "operator_id": st.session_state.get("username", "SYS_OPERATOR"),
     }
     new_id = insert_compressor_log(entry)
     if new_id is None:
@@ -119,7 +121,7 @@ if submitted:
 st.write("")
 
 # ---------------------------------------------------------------------------
-# Pressure Trend Section (Formated strictly to HH:MM)
+# Pressure Trend Section
 # ---------------------------------------------------------------------------
 st.subheader("Pressure Trend")
 
@@ -135,9 +137,7 @@ if not history_df.empty:
     else:
         df_chart["timestamp_dt"] = datetime.now()
 
-    # Create strict HH:MM time column for the trend axis
     df_chart["Time"] = df_chart["timestamp_dt"].dt.strftime("%H:%M")
-
     pressure_col = "delivery_pressure" if "delivery_pressure" in df_chart.columns else ("pressure" if "pressure" in df_chart.columns else None)
 
     if pressure_col:
@@ -163,7 +163,7 @@ else:
 st.write("")
 
 # ---------------------------------------------------------------------------
-# Compressor Detailed Log History Table (Strict HH:MM time format)
+# Compressor Detailed Log History Table
 # ---------------------------------------------------------------------------
 st.subheader("Compressor Detailed Log History")
 
@@ -178,7 +178,7 @@ if not history_df.empty:
         dt_series = pd.Series([datetime.now()] * len(df_table))
 
     df_table["Date"] = dt_series.dt.strftime("%Y-%m-%d")
-    df_table["Time"] = dt_series.dt.strftime("%H:%M")  # Formatted as HH:MM
+    df_table["Time"] = dt_series.dt.strftime("%H:%M")
 
     pressure_col = "delivery_pressure" if "delivery_pressure" in df_table.columns else ("pressure" if "pressure" in df_table.columns else None)
     df_table["Pressure (Bar)"] = df_table[pressure_col] if pressure_col else 0.0

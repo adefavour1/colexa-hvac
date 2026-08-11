@@ -1,20 +1,6 @@
 """
 DHU Monitoring - Dehumidifier telemetry entry for DHU-1 and DHU-2, combined trend analysis, and log history.
 """
-import streamlit as st
-from auth import check_auth, render_logout_sidebar
-
-st.set_page_config(page_title="Executive Dashboard", layout="wide")
-
-# Block access if user manually clears session or logs out
-if not check_auth():
-    st.stop()
-
-render_logout_sidebar()
-
-if st.button("⬅️ Back to Home page"):
-    st.switch_page("app.py") 
-
 import os
 import base64
 from datetime import datetime
@@ -22,6 +8,7 @@ import pandas as pd
 import plotly.express as px
 import streamlit as st
 
+from auth import check_auth, render_logout_sidebar
 from database.operations import insert_dhu_detail, fetch_dhu_details
 from utils.ui_components import (
     inject_global_css, render_facility_header, render_deviation_alert,
@@ -29,7 +16,14 @@ from utils.ui_components import (
 )
 from utils.rca_engine import get_rca_capa
 
+# 1. Page Configuration (Called only once)
 st.set_page_config(page_title="DHU Monitoring | COLEXA", page_icon="💧", layout="wide")
+
+# 2. Authentication Gatekeeper
+if not check_auth():
+    st.stop()
+
+render_logout_sidebar()
 inject_global_css()
 
 # ---------------------------------------------------------------------------
@@ -69,13 +63,22 @@ with st.sidebar:
     
     st.caption("HVAC & Facility Infrastructure Matrix")
     st.divider()
-    st.caption("Navigate using the pages listed above.")
+    st.markdown("### Navigation Controls")
+    
+    st.markdown('🏠 <a href="/" target="_self">Home Overview</a>', unsafe_allow_html=True)
+    st.markdown('📈 <a href="/Executive_Dashboard" target="_self">Executive Dashboard</a>', unsafe_allow_html=True)
+    st.markdown('❄️ <a href="/AHU_Monitoring" target="_self">AHU Monitoring</a>', unsafe_allow_html=True)
+    st.markdown('🌀 <a href="/Air_Compressor" target="_self">Air Compressor</a>', unsafe_allow_html=True)
+    st.markdown('💧 <a href="/DHU_Monitoring" target="_self">DHU Monitoring</a>', unsafe_allow_html=True)
+    st.markdown('🔍 <a href="/RCA_and_CAPA" target="_self">RCA & CAPA Engine</a>', unsafe_allow_html=True)
+    st.markdown('📋 <a href="/Compliance_Reports" target="_self">Compliance Reports</a>', unsafe_allow_html=True)
+    st.markdown('📚 <a href="/SOP_Library" target="_self">SOP Library</a>', unsafe_allow_html=True)
 
 # Render Branded Header Banner
 render_facility_header("DHU Monitoring", "Governing SOP: CBL-MNT-05 — Dehumidifier Operating Procedure")
 
 # Direct User Instruction
-st.info("please fill in the input data below.")
+st.info("Please fill in the input data below.")
 
 # ---------------------------------------------------------------------------
 # Distinct Telemetry Entry Sections (DHU-1 and DHU-2 Side-by-Side)
@@ -88,7 +91,7 @@ def process_dhu_submission(unit_id, rh_val, dpg_val, bound_prefix):
         "unit_id": unit_id,
         "relative_humidity": rh_val,
         "dpg_mmwc": dpg_val,
-        "operator_id": st.session_state.get("operator_id", "SYS_OPERATOR"),
+        "operator_id": st.session_state.get("username", "SYS_OPERATOR"),
     }
     new_id = insert_dhu_detail(entry)
     if new_id is None:
@@ -231,7 +234,7 @@ if not history_df.empty:
         dt_series = pd.Series([datetime.now()] * len(df_table))
 
     df_table["Date"] = dt_series.dt.strftime("%Y-%m-%d")
-    df_table["Time"] = dt_series.dt.strftime("%H:%M")  # Format as HH:MM
+    df_table["Time"] = dt_series.dt.strftime("%H:%M")
 
     if "unit_id" in df_table.columns:
         df_table["Unit"] = df_table["unit_id"].replace({"DHU-01": "DHU-1", "DHU-02": "DHU-2"})

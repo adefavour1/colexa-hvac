@@ -26,22 +26,18 @@ from utils.ui_components import (
     PARAMETER_BOUNDS,
 )
 
-# 1. Page Configuration (Must be the very first Streamlit call)
+# 1. Page Configuration (Called only once)
 st.set_page_config(page_title="Executive Dashboard | COLEXA", page_icon="📊", layout="wide")
 
-# Block access if user manually clears session or logs out
+# 2. Authentication Gatekeeper
 if not check_auth():
     st.stop()
 
 render_logout_sidebar()
 inject_global_css()
 
-# Reliable native navigation link back to Home overview page
-st.page_link("pages/app.py", label="⬅️ Back to Home / Overview", icon="🏠")
-st.write("")
-
 # ---------------------------------------------------------------------------
-# Sidebar Navigation & Branding (Standardized Layout)
+# Sidebar Navigation & Branding
 # ---------------------------------------------------------------------------
 with st.sidebar:
     assets_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "assets")
@@ -77,7 +73,16 @@ with st.sidebar:
     
     st.caption("HVAC & Facility Infrastructure Matrix")
     st.divider()
-    st.caption("Navigate using the pages listed above.")
+    st.markdown("### Navigation Controls")
+    
+    st.markdown('🏠 <a href="/" target="_self">Home Overview</a>', unsafe_allow_html=True)
+    st.markdown('📈 <a href="/Executive_Dashboard" target="_self">Executive Dashboard</a>', unsafe_allow_html=True)
+    st.markdown('❄️ <a href="/AHU_Monitoring" target="_self">AHU Monitoring</a>', unsafe_allow_html=True)
+    st.markdown('🌀 <a href="/Air_Compressor" target="_self">Air Compressor</a>', unsafe_allow_html=True)
+    st.markdown('💧 <a href="/DHU_Monitoring" target="_self">DHU Monitoring</a>', unsafe_allow_html=True)
+    st.markdown('🔍 <a href="/RCA_and_CAPA" target="_self">RCA & CAPA Engine</a>', unsafe_allow_html=True)
+    st.markdown('📋 <a href="/Compliance_Reports" target="_self">Compliance Reports</a>', unsafe_allow_html=True)
+    st.markdown('📚 <a href="/SOP_Library" target="_self">SOP Library</a>', unsafe_allow_html=True)
 
 # Render Branded Header Banner
 render_facility_header(

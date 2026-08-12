@@ -64,7 +64,7 @@ with st.sidebar:
     st.divider()
     st.markdown("### Navigation Controls")
     
-    st.page_link("Home.py", label="Home Overview", icon="🏠")
+    st.page_link("app.py", label="Home Overview", icon="🏠")
     st.page_link("pages/Executive_Dashboard.py", label="Executive Dashboard", icon="📈")
     st.page_link("pages/AHU_Monitoring.py", label="AHU Monitoring", icon="❄️")
     st.page_link("pages/Air_Compressor.py", label="Air Compressor", icon="🌀")

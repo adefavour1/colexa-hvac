@@ -11,7 +11,21 @@ import plotly.express as px
 import plotly.graph_objects as go
 import streamlit as st
 
+# 1. Page Configuration (Called only once)
+st.set_page_config(page_title="Executive Dashboard | COLEXA", page_icon="📊", layout="wide")
+
+# 2. Authentication Gatekeeper
 from auth import check_auth, render_logout_sidebar
+if not check_auth():
+    st.stop()
+
+render_logout_sidebar()
+from utils.ui_components import (
+    inject_global_css,
+    render_facility_header,
+    render_kpi_card,
+    PARAMETER_BOUNDS,
+)
 from database.operations import (
     fetch_ahu_details,
     fetch_dhu_details,
@@ -19,21 +33,7 @@ from database.operations import (
     fetch_deviations,
     compute_kpis,
 )
-from utils.ui_components import (
-    inject_global_css,
-    render_facility_header,
-    render_kpi_card,
-    PARAMETER_BOUNDS,
-)
 
-# 1. Page Configuration (Called only once)
-st.set_page_config(page_title="Executive Dashboard | COLEXA", page_icon="📊", layout="wide")
-
-# 2. Authentication Gatekeeper
-if not check_auth():
-    st.stop()
-
-render_logout_sidebar()
 inject_global_css()
 
 # ---------------------------------------------------------------------------
@@ -75,15 +75,16 @@ with st.sidebar:
     st.divider()
     st.markdown("### Navigation Controls")
     
-    st.markdown('🏠 <a href="" target="_self">Home Overview</a>', unsafe_allow_html=True) # or index/Home
-    st.markdown('📈 <a href="Executive_Dashboard" target="_self">Executive Dashboard</a>', unsafe_allow_html=True)
-    st.markdown('❄️ <a href="AHU_Monitoring" target="_self">AHU Monitoring</a>', unsafe_allow_html=True)
-    st.markdown('🌀 <a href="Air_Compressor" target="_self">Air Compressor</a>', unsafe_allow_html=True)
-    st.markdown('💧 <a href="DHU_Monitoring" target="_self">DHU Monitoring</a>', unsafe_allow_html=True)
-    st.markdown('🔍 <a href="RCA_and_CAPA" target="_self">RCA & CAPA Engine</a>', unsafe_allow_html=True)
-    st.markdown('📋 <a href="Compliance_Reports" target="_self">Compliance Reports</a>', unsafe_allow_html=True)
-    st.markdown('📚 <a href="SOP_Library" target="_self">SOP Library</a>', unsafe_allow_html=True)
-    st.markdown('⚙️ <a href="System_Settings" target="_self">System Settings</a>', unsafe_allow_html=True)
+    # Navigation updated to use st.page_link to maintain session state
+    st.page_link("Home.py", label="Home Overview", icon="🏠")
+    st.page_link("pages/Executive_Dashboard.py", label="Executive Dashboard", icon="📈")
+    st.page_link("pages/AHU_Monitoring.py", label="AHU Monitoring", icon="❄️")
+    st.page_link("pages/Air_Compressor.py", label="Air Compressor", icon="🌀")
+    st.page_link("pages/DHU_Monitoring.py", label="DHU Monitoring", icon="💧")
+    st.page_link("pages/RCA_and_CAPA.py", label="RCA & CAPA Engine", icon="🔍")
+    st.page_link("pages/Compliance_Reports.py", label="Compliance Reports", icon="📋")
+    st.page_link("pages/SOP_Library.py", label="SOP Library", icon="📚")
+    st.page_link("pages/System_Settings.py", label="System Settings", icon="⚙️")
     
 # Render Branded Header Banner
 render_facility_header(

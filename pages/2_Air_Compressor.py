@@ -189,4 +189,4 @@ if not history_df.empty:
 
     st.dataframe(display_table, use_container_width=True, hide_index=True)
 else:
-    st.info("No compressor telemetry logged yet.")s
+    st.info("No compressor telemetry logged yet.")

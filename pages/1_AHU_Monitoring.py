@@ -8,20 +8,20 @@ import pandas as pd
 import plotly.express as px
 import streamlit as st
 
+# 1. Page Config (Must be the first Streamlit command)
+st.set_page_config(page_title="AHU Monitoring | COLEXA", page_icon="❄️", layout="wide")
+
+# 2. Authentication Gatekeeper (Must come immediately after config)
 from auth import check_auth, render_logout_sidebar
+if not check_auth():
+    st.stop()
+
 from database.operations import insert_ahu_detail, fetch_ahu_details
 from utils.ui_components import (
     inject_global_css, render_facility_header, render_deviation_alert,
     evaluate_parameter_bounds,
 )
 from utils.rca_engine import get_rca_capa
-
-# 1. Single Page Configuration
-st.set_page_config(page_title="AHU Monitoring | COLEXA", page_icon="❄️", layout="wide")
-
-# 2. Authentication Gatekeeper (Stops execution if not logged in)
-if not check_auth():
-    st.stop()
 
 inject_global_css()
 
@@ -51,7 +51,6 @@ with st.sidebar:
     else:
         sidebar_logo_html = '<span style="font-size: 26px;">❄️</span>'
 
-    # Side-by-side Logo and Title Layout
     st.markdown(
         f"""
         <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 6px;">
@@ -66,154 +65,18 @@ with st.sidebar:
     st.divider()
     st.markdown("### Navigation Controls")
     
-    st.markdown('🏠 <a href="" target="_self">Home Overview</a>', unsafe_allow_html=True) # or index/Home
-    st.markdown('📈 <a href="Executive_Dashboard" target="_self">Executive Dashboard</a>', unsafe_allow_html=True)
-    st.markdown('❄️ <a href="AHU_Monitoring" target="_self">AHU Monitoring</a>', unsafe_allow_html=True)
-    st.markdown('🌀 <a href="Air_Compressor" target="_self">Air Compressor</a>', unsafe_allow_html=True)
-    st.markdown('💧 <a href="DHU_Monitoring" target="_self">DHU Monitoring</a>', unsafe_allow_html=True)
-    st.markdown('🔍 <a href="RCA_and_CAPA" target="_self">RCA & CAPA Engine</a>', unsafe_allow_html=True)
-    st.markdown('📋 <a href="Compliance_Reports" target="_self">Compliance Reports</a>', unsafe_allow_html=True)
-    st.markdown('📚 <a href="SOP_Library" target="_self">SOP Library</a>', unsafe_allow_html=True)
-    st.markdown('⚙️ <a href="System_Settings" target="_self">System Settings</a>', unsafe_allow_html=True)
+    # Using st.page_link to prevent session-resetting browser refreshes
+    st.page_link("Home.py", label="Home Overview", icon="🏠")
+    st.page_link("pages/Executive_Dashboard.py", label="Executive Dashboard", icon="📈")
+    st.page_link("pages/AHU_Monitoring.py", label="AHU Monitoring", icon="❄️")
+    st.page_link("pages/Air_Compressor.py", label="Air Compressor", icon="🌀")
+    st.page_link("pages/DHU_Monitoring.py", label="DHU Monitoring", icon="💧")
+    st.page_link("pages/RCA_and_CAPA.py", label="RCA & CAPA Engine", icon="🔍")
+    st.page_link("pages/Compliance_Reports.py", label="Compliance Reports", icon="📋")
+    st.page_link("pages/SOP_Library.py", label="SOP Library", icon="📚")
+    st.page_link("pages/System_Settings.py", label="System Settings", icon="⚙️")
 
 # Render Branded Header Banner
 render_facility_header("AHU Monitoring", "Governing SOP: CBL-MNT-02 — AHU Operating Procedure")
 
-# Direct User Instruction
-st.info("Please fill in the input data below.")
-
-# AHU Unit Selection
-unit_id = st.selectbox("Select AHU Unit", options=["AHU Control Panel"])
-
-st.subheader("Detailed AHU Telemetry Entry")
-
-# Simplified Form: Temp (°C) and RH (%)
-with st.form("ahu_detail_form"):
-    col1, col2 = st.columns(2)
-    temp_val = col1.number_input("Temp (°C)", value=22.0, step=0.1)
-    rh_val = col2.number_input("RH (%)", value=30.0, step=0.1)
-
-    submitted = st.form_submit_button("❄️ Log AHU Details")
-
-if submitted:
-    entry = {
-        "unit_id": unit_id,
-        "supply_temp": temp_val,
-        "relative_humidity": rh_val,
-        "operator_id": st.session_state.get("username", "SYS_OPERATOR"),
-    }
-    new_id = insert_ahu_detail(entry)
-    if new_id is None:
-        st.error("Failed to save AHU detail. Check logs/db_errors.log.")
-    else:
-        st.success(f"AHU detail logged (Record #{new_id}) for {unit_id}.")
-
-    # Bounds evaluation against controlled SOP limits
-    for param_key, value in [("ahu_temperature", temp_val), ("ahu_rh", rh_val)]:
-        evaluation = evaluate_parameter_bounds(param_key, value)
-        if not evaluation["in_bounds"]:
-            render_deviation_alert(
-                evaluation["label"],
-                evaluation["status"],
-                value,
-                evaluation["low"],
-                evaluation["high"],
-                evaluation["unit"]
-            )
-            rca_result = get_rca_capa(param_key, evaluation["status"], evaluation["referenced_sop"])
-            with st.expander(f"RCA / CAPA — {evaluation['label']}"):
-                for cause in rca_result.get("causes", []):
-                    st.markdown(f"- {cause}")
-                st.markdown(f"**CAPA:** {rca_result.get('recommended_capa', 'N/A')}")
-
-st.write("")
-
-# ---------------------------------------------------------------------------
-# Temperature Trend and RH Trends Section
-# ---------------------------------------------------------------------------
-st.subheader("Temperature Trend and RH Trends")
-
-history_df = fetch_ahu_details(limit=200)
-
-if not history_df.empty:
-    df_chart = history_df.copy()
-    
-    if "timestamp" in df_chart.columns:
-        df_chart["timestamp_dt"] = pd.to_datetime(df_chart["timestamp"])
-    elif "created_at" in df_chart.columns:
-        df_chart["timestamp_dt"] = pd.to_datetime(df_chart["created_at"])
-    else:
-        df_chart["timestamp_dt"] = datetime.now()
-
-    temp_col = "supply_temp" if "supply_temp" in df_chart.columns else ("temp" if "temp" in df_chart.columns else None)
-    rh_col = "relative_humidity" if "relative_humidity" in df_chart.columns else ("rh" if "rh" in df_chart.columns else None)
-
-    # 1. Temperature Trend Plot
-    st.markdown("### Temperature Trend")
-    if temp_col:
-        fig_temp = px.line(
-            df_chart,
-            x="timestamp_dt",
-            y=temp_col,
-            labels={"timestamp_dt": "Time", temp_col: "Temp (°C)"},
-            title="Temperature (°C) vs Time"
-        )
-        fig_temp.update_traces(line_color="#06B6D4", line_width=2)
-        fig_temp.update_layout(paper_bgcolor="#0B0F19", plot_bgcolor="#111827", font_color="#E5E7EB")
-        st.plotly_chart(fig_temp, use_container_width=True)
-    else:
-        st.info("No temperature trend data available.")
-
-    # 2. RH Trend Plot
-    st.markdown("### RH Trend")
-    if rh_col:
-        fig_rh = px.line(
-            df_chart,
-            x="timestamp_dt",
-            y=rh_col,
-            labels={"timestamp_dt": "Time", rh_col: "RH (%)"},
-            title="RH (%) vs Time"
-        )
-        fig_rh.update_traces(line_color="#C1F24D", line_width=2)
-        fig_rh.update_layout(paper_bgcolor="#0B0F19", plot_bgcolor="#111827", font_color="#E5E7EB")
-        st.plotly_chart(fig_rh, use_container_width=True)
-    else:
-        st.info("No RH trend data available.")
-else:
-    st.markdown("### Temperature Trend")
-    st.info("No telemetry logged yet for Temperature Trend.")
-    st.markdown("### RH Trend")
-    st.info("No telemetry logged yet for RH Trend.")
-
-st.write("")
-
-# ---------------------------------------------------------------------------
-# AHU Detailed Log History Table (Strict HH:MM time format)
-# ---------------------------------------------------------------------------
-st.subheader("AHU Detailed Log History")
-
-if not history_df.empty:
-    df_table = history_df.copy()
-
-    if "timestamp" in df_table.columns:
-        dt_series = pd.to_datetime(df_table["timestamp"])
-    elif "created_at" in df_table.columns:
-        dt_series = pd.to_datetime(df_table["created_at"])
-    else:
-        dt_series = pd.Series([datetime.now()] * len(df_table))
-
-    df_table["Date"] = dt_series.dt.strftime("%Y-%m-%d")
-    df_table["Time"] = dt_series.dt.strftime("%H:%M")  # Strict HH:MM format
-
-    temp_col = "supply_temp" if "supply_temp" in df_table.columns else ("temp" if "temp" in df_table.columns else None)
-    rh_col = "relative_humidity" if "relative_humidity" in df_table.columns else ("rh" if "rh" in df_table.columns else None)
-
-    df_table["Temp (°C)"] = df_table[temp_col] if temp_col else 0.0
-    df_table["RH (%)"] = df_table[rh_col] if rh_col else 0.0
-
-    df_table["S/N"] = range(1, len(df_table) + 1)
-    display_table = df_table[["S/N", "Date", "Time", "Temp (°C)", "RH (%)"]]
-
-    st.dataframe(display_table, use_container_width=True, hide_index=True)
-else:
-    st.info("No detailed AHU telemetry logged yet.")
+# ... [rest of your page logic follows here]

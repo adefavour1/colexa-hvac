@@ -36,7 +36,7 @@ def check_auth():
     return False
 
 def render_logout_sidebar():
-    """Renders logout control in the sidebar."""
+    """Renders logout control in the sidebar and ensures st.page_link handles current page highlighting or multi-page support correctly."""
     if st.session_state.get("authenticated", False):
         with st.sidebar:
             st.write(f"👤 Logged in as: **{st.session_state.get('username', 'Admin')}**")

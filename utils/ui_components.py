@@ -114,7 +114,7 @@ def status_color(status: str) -> str:
 
 
 def inject_global_css() -> None:
-    """Inject the Colexa Biosensor corporate slate theme via unsafe HTML/CSS.
+    """Inject the Colexa Biosensor corporate slate theme and hide Streamlit branding/manage app icons via unsafe HTML/CSS.
 
     Call this once near the top of every page.
     """
@@ -137,6 +137,21 @@ def inject_global_css() -> None:
             color: {COLOR_CYAN} !important;
             fill: {COLOR_CYAN} !important;
         }}
+        
+        /* Hides default Streamlit header, footer, main menu, and 'Manage app' badge/decoration */
+        #MainMenu, footer, header {{
+            visibility: hidden !important;
+            display: none !important;
+        }}
+        .viewerBadge_container__1QSob, 
+        .styles_viewerBadge__1yB5_, 
+        .viewerBadge_link__1S137, 
+        .viewerBadge_text__1JaDK,
+        div[data-testid="stDecoration"],
+        div[class*="viewerBadge"] {{
+            display: none !important;
+        }}
+
         .colexa-ribbon {{
             height: 6px;
             width: 100%;

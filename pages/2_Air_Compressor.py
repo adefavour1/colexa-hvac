@@ -65,14 +65,14 @@ with st.sidebar:
     st.markdown("### Navigation Controls")
     
     st.page_link("app.py", label="Home Overview", icon="🏠")
-    st.page_link("pages/Executive_Dashboard.py", label="Executive Dashboard", icon="📈")
-    st.page_link("pages/AHU_Monitoring.py", label="AHU Monitoring", icon="❄️")
-    st.page_link("pages/Air_Compressor.py", label="Air Compressor", icon="🌀")
-    st.page_link("pages/DHU_Monitoring.py", label="DHU Monitoring", icon="💧")
-    st.page_link("pages/RCA_and_CAPA.py", label="RCA & CAPA Engine", icon="🔍")
-    st.page_link("pages/Compliance_Reports.py", label="Compliance Reports", icon="📋")
-    st.page_link("pages/SOP_Library.py", label="SOP Library", icon="📚")
-    st.page_link("pages/System_Settings.py", label="System Settings", icon="⚙️")
+    st.page_link("pages/4_Executive_Dashboard.py", label="Executive Dashboard", icon="📈")
+    st.page_link("pages/1_AHU_Monitoring.py", label="AHU Monitoring", icon="❄️")
+    st.page_link("pages/2_Air_Compressor.py", label="Air Compressor", icon="🌀")
+    st.page_link("pages/3_DHU_Monitoring.py", label="DHU Monitoring", icon="💧")
+    st.page_link("pages/5_RCA_and_CAPA.py", label="RCA & CAPA Engine", icon="🔍")
+    st.page_link("pages/6_Compliance_Reports.py", label="Compliance Reports", icon="📋")
+    st.page_link("pages/7_SOP_Library.py", label="SOP Library", icon="📚")
+    st.page_link("pages/8_System_Settings.py", label="System Settings", icon="⚙️")
     
 # Render Branded Header Banner
 render_facility_header("Air Compressor Monitoring", "Governing SOP: CBL-MNT-03 — Air Compressor Operating Procedure")

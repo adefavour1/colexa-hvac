@@ -11,7 +11,7 @@ import streamlit as st
 # 1. Page Configuration
 st.set_page_config(page_title="Air Compressor | COLEXA", page_icon="🌀", layout="wide")
 
-# 2. Authentication Gatekeeper (Ensures auth persists)
+# 2. Authentication Gatekeeper
 from auth import check_auth, render_logout_sidebar
 if not check_auth():
     st.stop()
@@ -64,18 +64,129 @@ with st.sidebar:
     st.divider()
     st.markdown("### Navigation Controls")
     
-    # Navigation updated to use st.page_link to maintain session state
-    st.page_link("app.py", label="Home Overview", icon="🏠")
-    st.page_link("pages/4_Executive_Dashboard.py", label="Executive Dashboard", icon="📈")
-    st.page_link("pages/1_AHU_Monitoring.py", label="AHU Monitoring", icon="❄️")
-    st.page_link("pages/2_Air_Compressor.py", label="Air Compressor", icon="🌀")
-    st.page_link("pages/3_DHU_Monitoring.py", label="DHU Monitoring", icon="💧")
-    st.page_link("pages/5_RCA_and_CAPA.py", label="RCA & CAPA Engine", icon="🔍")
-    st.page_link("pages/6_Compliance_Reports.py", label="Compliance Reports", icon="📋")
-    st.page_link("pages/7_SOP_Library.py", label="SOP Library", icon="📚")
-    st.page_link("pages/8_System_Settings.py", label="System Settings", icon="⚙️")
+    st.page_link("Home.py", label="Home Overview", icon="🏠")
+    st.page_link("pages/Executive_Dashboard.py", label="Executive Dashboard", icon="📈")
+    st.page_link("pages/AHU_Monitoring.py", label="AHU Monitoring", icon="❄️")
+    st.page_link("pages/Air_Compressor.py", label="Air Compressor", icon="🌀")
+    st.page_link("pages/DHU_Monitoring.py", label="DHU Monitoring", icon="💧")
+    st.page_link("pages/RCA_and_CAPA.py", label="RCA & CAPA Engine", icon="🔍")
+    st.page_link("pages/Compliance_Reports.py", label="Compliance Reports", icon="📋")
+    st.page_link("pages/SOP_Library.py", label="SOP Library", icon="📚")
+    st.page_link("pages/System_Settings.py", label="System Settings", icon="⚙️")
     
 # Render Branded Header Banner
 render_facility_header("Air Compressor Monitoring", "Governing SOP: CBL-MNT-03 — Air Compressor Operating Procedure")
 
-# ... [Rest of your page code remains the same]
+# Direct User Instruction
+st.info("Please fill in the input data below.")
+
+# Compressor Panel Selection
+unit_id = st.selectbox("Select Compressor Unit", options=["Air Compressor Panel"])
+
+st.subheader("Detailed Compressor Telemetry Entry")
+
+# Form: Pressure (Bar)
+with st.form("compressor_detail_form"):
+    pressure_val = st.number_input("Pressure (Bar)", value=6.0, step=0.1)
+    submitted = st.form_submit_button("🌀 Log Compressor Details")
+
+if submitted:
+    entry = {
+        "unit_id": unit_id,
+        "delivery_pressure": pressure_val,
+        "operator_id": st.session_state.get("username", "SYS_OPERATOR"),
+    }
+    new_id = insert_compressor_log(entry)
+    if new_id is None:
+        st.error("Failed to save compressor detail. Check logs/db_errors.log.")
+    else:
+        st.success(f"Compressor detail logged (Record #{new_id}) for {unit_id}.")
+
+    # Bounds evaluation against controlled SOP limits
+    evaluation = evaluate_parameter_bounds("compressor_pressure", pressure_val)
+    if not evaluation["in_bounds"]:
+        render_deviation_alert(
+            evaluation["label"],
+            evaluation["status"],
+            pressure_val,
+            evaluation["low"],
+            evaluation["high"],
+            evaluation["unit"]
+        )
+        rca_result = get_rca_capa("compressor_pressure", evaluation["status"], evaluation["referenced_sop"])
+        with st.expander(f"RCA / CAPA — {evaluation['label']}"):
+            for cause in rca_result.get("causes", []):
+                st.markdown(f"- {cause}")
+            st.markdown(f"**CAPA:** {rca_result.get('recommended_capa', 'N/A')}")
+
+st.write("")
+
+# ---------------------------------------------------------------------------
+# Pressure Trend Section
+# ---------------------------------------------------------------------------
+st.subheader("Pressure Trend")
+
+history_df = fetch_compressor_logs(limit=200)
+
+if not history_df.empty:
+    df_chart = history_df.copy()
+    
+    if "timestamp" in df_chart.columns:
+        df_chart["timestamp_dt"] = pd.to_datetime(df_chart["timestamp"])
+    elif "created_at" in df_chart.columns:
+        df_chart["timestamp_dt"] = pd.to_datetime(df_chart["created_at"])
+    else:
+        df_chart["timestamp_dt"] = datetime.now()
+
+    df_chart["Time"] = df_chart["timestamp_dt"].dt.strftime("%H:%M")
+    pressure_col = "delivery_pressure" if "delivery_pressure" in df_chart.columns else ("pressure" if "pressure" in df_chart.columns else None)
+
+    if pressure_col:
+        fig_p = px.line(
+            df_chart,
+            x="Time",
+            y=pressure_col,
+            labels={"Time": "Time", pressure_col: "Pressure (Bar)"},
+            title="Pressure (Bar) vs Time"
+        )
+        fig_p.update_traces(
+            line_color="#06B6D4", 
+            line_width=2,
+            hovertemplate="Time: %{x}<br>Pressure: %{y} Bar<extra></extra>"
+        )
+        fig_p.update_layout(paper_bgcolor="#0B0F19", plot_bgcolor="#111827", font_color="#E5E7EB")
+        st.plotly_chart(fig_p, use_container_width=True)
+    else:
+        st.info("No pressure trend data available.")
+else:
+    st.info("No telemetry logged yet for Pressure Trend.")
+
+st.write("")
+
+# ---------------------------------------------------------------------------
+# Compressor Detailed Log History Table
+# ---------------------------------------------------------------------------
+st.subheader("Compressor Detailed Log History")
+
+if not history_df.empty:
+    df_table = history_df.copy()
+
+    if "timestamp" in df_table.columns:
+        dt_series = pd.to_datetime(df_table["timestamp"])
+    elif "created_at" in df_table.columns:
+        dt_series = pd.to_datetime(df_table["created_at"])
+    else:
+        dt_series = pd.Series([datetime.now()] * len(df_table))
+
+    df_table["Date"] = dt_series.dt.strftime("%Y-%m-%d")
+    df_table["Time"] = dt_series.dt.strftime("%H:%M")
+
+    pressure_col = "delivery_pressure" if "delivery_pressure" in df_table.columns else ("pressure" if "pressure" in df_table.columns else None)
+    df_table["Pressure (Bar)"] = df_table[pressure_col] if pressure_col else 0.0
+
+    df_table["S/N"] = range(1, len(df_table) + 1)
+    display_table = df_table[["S/N", "Date", "Time", "Pressure (Bar)"]]
+
+    st.dataframe(display_table, use_container_width=True, hide_index=True)
+else:
+    st.info("No compressor telemetry logged yet.")

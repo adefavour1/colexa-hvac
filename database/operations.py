@@ -14,13 +14,48 @@ from typing import Any
 import pandas as pd
 import streamlit as st
 
-# Updated: Import the audit function
-from database.audit import write_audit_entry 
 from database.schema import get_connection, _log_exception
 
 
 # ---------------------------------------------------------------------------
-# Audit trail
+# Audit trail helper (defined locally since audit.py does not exist)
+# ---------------------------------------------------------------------------
+
+def write_audit_entry(
+    username: str, 
+    action: str, 
+    table_name: str, 
+    record_id: int = 0, 
+    detail: str = ""
+) -> None:
+    """Inserts a record into the audit_trail table for FDA 21 CFR Part 11 compliance."""
+    connection: sqlite3.Connection | None = None
+    try:
+        connection = get_connection()
+        connection.execute(
+            """
+            INSERT INTO audit_trail (timestamp, username, action, table_name, record_id, detail)
+            VALUES (?, ?, ?, ?, ?, ?)
+            """,
+            (
+                datetime.now().isoformat(timespec="seconds"),
+                username,
+                action,
+                table_name,
+                record_id,
+                detail,
+            ),
+        )
+        connection.commit()
+    except sqlite3.Error as exc:
+        _log_exception("write_audit_entry", exc)
+    finally:
+        if connection is not None:
+            connection.close()
+
+
+# ---------------------------------------------------------------------------
+# Audit trail fetcher
 # ---------------------------------------------------------------------------
 
 @st.cache_data(ttl=60)
@@ -449,7 +484,7 @@ def delete_telemetry_by_date_range(
             username=username,
             action="DELETE_RANGE",
             table_name=", ".join(target_tables),
-            record_id=0, # Added placeholder to match expected signature
+            record_id=0,
             detail=f"Deleted {total_deleted} records between {start_date} and {end_date}"
         )
         
@@ -524,7 +559,7 @@ def reset_all_telemetry_data(username: str = "Admin") -> bool:
             username=username,
             action="FULL_RESET",
             table_name="ALL",
-            record_id=0, # Added placeholder
+            record_id=0,
             detail="Entire telemetry database reset"
         )
 

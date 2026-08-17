@@ -14,6 +14,8 @@ from typing import Any
 import pandas as pd
 import streamlit as st
 
+# Updated: Import the audit function
+from database.audit import write_audit_entry 
 from database.schema import get_connection, _log_exception
 
 
@@ -447,6 +449,7 @@ def delete_telemetry_by_date_range(
             username=username,
             action="DELETE_RANGE",
             table_name=", ".join(target_tables),
+            record_id=0, # Added placeholder to match expected signature
             detail=f"Deleted {total_deleted} records between {start_date} and {end_date}"
         )
         
@@ -521,6 +524,7 @@ def reset_all_telemetry_data(username: str = "Admin") -> bool:
             username=username,
             action="FULL_RESET",
             table_name="ALL",
+            record_id=0, # Added placeholder
             detail="Entire telemetry database reset"
         )
 

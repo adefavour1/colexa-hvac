@@ -1,9 +1,8 @@
 """
 Executive Dashboard - Real-time telemetry overview, multi-unit parameter dashboards,
-environmental stability heatmaps, and End-of-Day data maintenance.
+environmental stability heatmaps, and Executive Data Export.
 """
 import os
-import sqlite3
 import base64
 from datetime import datetime, date
 import pandas as pd
@@ -33,6 +32,7 @@ from database.operations import (
     fetch_deviations,
     compute_kpis,
 )
+from database.schema import get_supabase_client
 
 inject_global_css()
 
@@ -296,60 +296,50 @@ st.write("")
 st.divider()
 
 # ---------------------------------------------------------------------------
-# End-of-Day Data Maintenance & Purge Section
+# Executive Data Export Section
 # ---------------------------------------------------------------------------
-st.subheader("🗑️ End-of-Day Data Maintenance & Log Purge")
-st.caption("Manage facility database logs to keep charts clean, responsive, and uncluttered day-to-day.")
+st.subheader("📥 Executive Data Export")
+st.caption("Generate and download historical reports directly from the Supabase cloud repository.")
 
-with st.expander("⚠️ Expand Data Deletion & Purge Controls"):
-    st.warning("Action Notice: Deleting log entries will permanently erase telemetry records from the active database for the chosen parameters.")
-    
-    del_col1, del_col2, del_col3 = st.columns(3)
-    
-    with del_col1:
-        purge_target = st.selectbox(
-            "Select Module to Clean",
-            options=["All Facility Telemetry", "AHU Control Panel Logs", "DHU System Logs", "Air Compressor Logs"]
-        )
-    with del_col2:
-        purge_date = st.date_input("Delete Logs On or Before Date", value=date.today())
-    with del_col3:
-        confirm_check = st.checkbox("I confirm I want to purge these daily records", value=False)
+table_options = {
+    "Facility Shift Logs": "facility_logs",
+    "AHU Detailed Logs": "ahu_detailed_logs",
+    "DHU Detailed Logs": "dhu_detailed_logs",
+    "Compressor Logs": "compressor_logs",
+    "Deviation / CAPA Logs": "deviation_logs",
+    "Immutable Audit Trail": "audit_trail"
+}
 
+export_col1, export_col2 = st.columns([2, 1])
+
+with export_col1:
+    export_table_label = st.selectbox("Select Table to Export", options=list(table_options.keys()))
+    export_table_name = table_options[export_table_label]
+
+with export_col2:
     st.write("")
+    st.write("")
+    generate_btn = st.button("Generate Report", type="primary", use_container_width=True)
 
-    if st.button("🗑️ Execute Data Purge", type="primary"):
-        if not confirm_check:
-            st.error("Please check the confirmation box before purging records.")
+if generate_btn:
+    try:
+        client = get_supabase_client()
+        response = client.table(export_table_name).select("*").execute()
+        data = response.data
+        
+        if data:
+            df_export = pd.DataFrame(data)
+            csv_data = df_export.to_csv(index=False).encode("utf-8")
+            
+            st.download_button(
+                label=f"💾 Download {export_table_label} (CSV)",
+                data=csv_data,
+                file_name=f"COLEXA_Report_{export_table_name}_{datetime.now().strftime('%Y%m%d_%H%M')}.csv",
+                mime="text/csv",
+                use_container_width=True
+            )
+            st.success(f"✅ Report ready: {len(df_export)} record(s) retrieved from Supabase.")
         else:
-            try:
-                db_path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "database", "colexa.db")
-                if not os.path.exists(db_path):
-                    db_path = "colexa.db"
-
-                conn = sqlite3.connect(db_path)
-                cursor = conn.cursor()
-                date_str = purge_date.strftime("%Y-%m-%d")
-
-                deleted_count = 0
-
-                if purge_target in ["All Facility Telemetry", "AHU Control Panel Logs"]:
-                    cursor.execute("DELETE FROM ahu_details WHERE DATE(timestamp) <= ?", (date_str,))
-                    deleted_count += cursor.rowcount
-
-                if purge_target in ["All Facility Telemetry", "DHU System Logs"]:
-                    cursor.execute("DELETE FROM dhu_details WHERE DATE(timestamp) <= ?", (date_str,))
-                    deleted_count += cursor.rowcount
-
-                if purge_target in ["All Facility Telemetry", "Air Compressor Logs"]:
-                    cursor.execute("DELETE FROM compressor_logs WHERE DATE(timestamp) <= ?", (date_str,))
-                    deleted_count += cursor.rowcount
-
-                conn.commit()
-                conn.close()
-
-                st.success(f"Purge Successful: Erased recorded logs on or prior to {date_str}. ({deleted_count} records removed)")
-                st.rerun()
-
-            except Exception as e:
-                st.error(f"Failed to purge database entries: {e}")
+            st.info(f"No records found in table `{export_table_name}`.")
+    except Exception as e:
+        st.error(f"❌ Could not retrieve data from Supabase: {e}")

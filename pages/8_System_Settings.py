@@ -17,7 +17,7 @@ if not check_auth():
     st.stop()
 
 render_logout_sidebar()
-from database.schema import initialize_database
+from database.schema import initialize_database, get_supabase_client
 from database.operations import (
     fetch_audit_trail,
     reset_all_telemetry_data,
@@ -105,20 +105,19 @@ render_facility_header(
 # ---------------------------------------------------------------------------
 st.subheader("Database Health & Integrity")
 
-db_exists = os.path.exists(DB_PATH)
-size_kb = 0.0
-
-if db_exists:
-    try:
-        size_kb = os.path.getsize(DB_PATH) / 1024
-    except OSError:
-        size_kb = 0.0
+db_connected = False
+try:
+    client = get_supabase_client()
+    client.table("facility_logs").select("id", count="exact").limit(1).execute()
+    db_connected = True
+except Exception:
+    db_connected = False
 
 db_cols = st.columns(2)
 with db_cols[0]:
-    render_kpi_card("Database File", "Active" if db_exists else "Not Found")
+    render_kpi_card("Supabase Cloud DB", "Connected" if db_connected else "Connection Failed")
 with db_cols[1]:
-    render_kpi_card("Database Size", f"{size_kb:.1f} KB" if db_exists else "0 KB")
+    render_kpi_card("Cloud Provider", "Supabase PostgreSQL")
 
 st.write("")
 col_btn, _ = st.columns([1, 2])
@@ -126,7 +125,7 @@ with col_btn:
     if st.button("🔄 Verify & Re-run Schema Initialization", use_container_width=True):
         success = initialize_database()
         if success:
-            st.success("✅ Schema verified and database tables initialized successfully.")
+            st.success("✅ Schema verified and Supabase connection initialized successfully.")
         else:
             st.error("❌ Schema initialization failed. Please check system logs for details.")
 

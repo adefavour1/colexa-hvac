@@ -1,24 +1,22 @@
 """
 COLEXA BIOSENSOR - HVAC Monitoring Platform
-Isolated database query execution handlers (CRUD).
+Supabase CRUD Operations Handler.
 
-All queries use parameterized (?) placeholders. Every public function
-wraps its connection lifecycle in try/except/finally so a database fault
-never crashes the Streamlit UI.
+All database interactions use the Supabase client API. Every public function
+wraps execution in try/except so network or database faults never crash the Streamlit UI.
 """
 
-import sqlite3
 from datetime import datetime
 from typing import Any
 
 import pandas as pd
 import streamlit as st
 
-from database.schema import get_connection, _log_exception
+from database.schema import get_supabase_client, _log_exception
 
 
 # ---------------------------------------------------------------------------
-# Audit trail helper (defined locally since audit.py does not exist)
+# Audit trail helper
 # ---------------------------------------------------------------------------
 
 def write_audit_entry(
@@ -29,29 +27,18 @@ def write_audit_entry(
     detail: str = ""
 ) -> None:
     """Inserts a record into the audit_trail table for FDA 21 CFR Part 11 compliance."""
-    connection: sqlite3.Connection | None = None
     try:
-        connection = get_connection()
-        connection.execute(
-            """
-            INSERT INTO audit_trail (timestamp, username, action, table_name, record_id, detail)
-            VALUES (?, ?, ?, ?, ?, ?)
-            """,
-            (
-                datetime.now().isoformat(timespec="seconds"),
-                username,
-                action,
-                table_name,
-                record_id,
-                detail,
-            ),
-        )
-        connection.commit()
-    except sqlite3.Error as exc:
+        client = get_supabase_client()
+        client.table("audit_trail").insert({
+            "timestamp": datetime.now().isoformat(timespec="seconds"),
+            "username": username,
+            "action": action,
+            "table_name": table_name,
+            "record_id": record_id,
+            "detail": detail,
+        }).execute()
+    except Exception as exc:
         _log_exception("write_audit_entry", exc)
-    finally:
-        if connection is not None:
-            connection.close()
 
 
 # ---------------------------------------------------------------------------
@@ -61,7 +48,13 @@ def write_audit_entry(
 @st.cache_data(ttl=60)
 def fetch_audit_trail(limit: int = 1000) -> pd.DataFrame:
     """Retrieve the immutable audit trail, most recent first."""
-    return _fetch_table("audit_trail", limit)
+    try:
+        client = get_supabase_client()
+        response = client.table("audit_trail").select("*").order("id", desc=True).limit(limit).execute()
+        return pd.DataFrame(response.data) if response.data else pd.DataFrame()
+    except Exception as exc:
+        _log_exception("fetch_audit_trail", exc)
+        return pd.DataFrame()
 
 
 # ---------------------------------------------------------------------------
@@ -70,76 +63,56 @@ def fetch_audit_trail(limit: int = 1000) -> pd.DataFrame:
 
 def insert_facility_log(entry: dict[str, Any]) -> int | None:
     """Insert one shift telemetry row into facility_logs."""
-    connection: sqlite3.Connection | None = None
     try:
-        connection = get_connection()
+        client = get_supabase_client()
         
-        # Ensure shift_date defaults to today's date if omitted
         shift_date = entry.get("shift_date")
         if not shift_date:
             shift_date = datetime.now().strftime("%Y-%m-%d")
 
-        cursor = connection.execute(
-            """
-            INSERT INTO facility_logs (
-                timestamp, shift_date, shift_time, ahu_temperature, ahu_rh,
-                dhu1_rh, dhu1_dpg, dhu2_rh, dhu2_dpg,
-                ac_temp_1, ac_temp_2, ac_temp_3, compressor_pressure,
-                remarks, operator_id, checked_by, verified_by, status
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            """,
-            (
-                entry.get("timestamp", datetime.now().isoformat(timespec="seconds")),
-                shift_date,
-                entry.get("shift_time", datetime.now().strftime("%H:%M")),
-                entry.get("ahu_temperature"),
-                entry.get("ahu_rh"),
-                entry.get("dhu1_rh"),
-                entry.get("dhu1_dpg"),
-                entry.get("dhu2_rh"),
-                entry.get("dhu2_dpg"),
-                entry.get("ac_temp_1"),
-                entry.get("ac_temp_2"),
-                entry.get("ac_temp_3"),
-                entry.get("compressor_pressure"),
-                entry.get("remarks", ""),
-                entry.get("operator_id", "unknown"),
-                entry.get("checked_by", ""),
-                entry.get("verified_by", ""),
-                entry.get("status", "Nominal"),
-            ),
-        )
-        connection.commit()
-        new_id: int = cursor.lastrowid
-        write_audit_entry(entry.get("operator_id", "unknown"), "INSERT", "facility_logs", new_id, "Shift telemetry recorded")
-        _clear_streamlit_cache()
-        return new_id
-    except sqlite3.Error as exc:
+        payload = {
+            "timestamp": entry.get("timestamp", datetime.now().isoformat(timespec="seconds")),
+            "shift_date": shift_date,
+            "shift_time": entry.get("shift_time", datetime.now().strftime("%H:%M")),
+            "ahu_temperature": entry.get("ahu_temperature"),
+            "ahu_rh": entry.get("ahu_rh"),
+            "dhu1_rh": entry.get("dhu1_rh"),
+            "dhu1_dpg": entry.get("dhu1_dpg"),
+            "dhu2_rh": entry.get("dhu2_rh"),
+            "dhu2_dpg": entry.get("dhu2_dpg"),
+            "ac_temp_1": entry.get("ac_temp_1"),
+            "ac_temp_2": entry.get("ac_temp_2"),
+            "ac_temp_3": entry.get("ac_temp_3"),
+            "compressor_pressure": entry.get("compressor_pressure"),
+            "remarks": entry.get("remarks", ""),
+            "operator_id": entry.get("operator_id", "unknown"),
+            "checked_by": entry.get("checked_by", ""),
+            "verified_by": entry.get("verified_by", ""),
+            "status": entry.get("status", "Nominal"),
+        }
+
+        response = client.table("facility_logs").insert(payload).execute()
+        if response.data:
+            new_id = response.data[0]["id"]
+            write_audit_entry(entry.get("operator_id", "unknown"), "INSERT", "facility_logs", new_id, "Shift telemetry recorded")
+            _clear_streamlit_cache()
+            return new_id
+        return None
+    except Exception as exc:
         _log_exception("insert_facility_log", exc)
         return None
-    finally:
-        if connection is not None:
-            connection.close()
 
 
 @st.cache_data(ttl=60)
 def fetch_facility_logs(limit: int = 500) -> pd.DataFrame:
     """Retrieve the most recent facility_logs rows as a DataFrame."""
-    connection: sqlite3.Connection | None = None
     try:
-        connection = get_connection()
-        df: pd.DataFrame = pd.read_sql_query(
-            "SELECT * FROM facility_logs ORDER BY id DESC LIMIT ?",
-            connection,
-            params=(limit,),
-        )
-        return df
-    except sqlite3.Error as exc:
+        client = get_supabase_client()
+        response = client.table("facility_logs").select("*").order("id", desc=True).limit(limit).execute()
+        return pd.DataFrame(response.data) if response.data else pd.DataFrame()
+    except Exception as exc:
         _log_exception("fetch_facility_logs", exc)
         return pd.DataFrame()
-    finally:
-        if connection is not None:
-            connection.close()
 
 
 # ---------------------------------------------------------------------------
@@ -148,91 +121,61 @@ def fetch_facility_logs(limit: int = 500) -> pd.DataFrame:
 
 def insert_deviation(entry: dict[str, Any]) -> int | None:
     """Insert a deviation/CAPA event."""
-    connection: sqlite3.Connection | None = None
     try:
-        connection = get_connection()
-        cursor = connection.execute(
-            """
-            INSERT INTO deviation_logs (
-                timestamp, equipment, parameter, observed_value, lower_limit,
-                upper_limit, severity, probable_causes, recommended_capa,
-                referenced_sop, capa_status, operator_id
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            """,
-            (
-                entry.get("timestamp", datetime.now().isoformat(timespec="seconds")),
-                entry.get("equipment"),
-                entry.get("parameter"),
-                entry.get("observed_value"),
-                entry.get("lower_limit"),
-                entry.get("upper_limit"),
-                entry.get("severity", "Minor"),
-                entry.get("probable_causes", ""),
-                entry.get("recommended_capa", ""),
-                entry.get("referenced_sop", ""),
-                entry.get("capa_status", "Open"),
-                entry.get("operator_id", "unknown"),
-            ),
-        )
-        connection.commit()
-        new_id: int = cursor.lastrowid
-        write_audit_entry(entry.get("operator_id", "unknown"), "INSERT", "deviation_logs", new_id, f"Deviation logged: {entry.get('parameter')}")
-        _clear_streamlit_cache()
-        return new_id
-    except sqlite3.Error as exc:
+        client = get_supabase_client()
+        payload = {
+            "timestamp": entry.get("timestamp", datetime.now().isoformat(timespec="seconds")),
+            "equipment": entry.get("equipment"),
+            "parameter": entry.get("parameter"),
+            "observed_value": entry.get("observed_value"),
+            "lower_limit": entry.get("lower_limit"),
+            "upper_limit": entry.get("upper_limit"),
+            "severity": entry.get("severity", "Minor"),
+            "probable_causes": entry.get("probable_causes", ""),
+            "recommended_capa": entry.get("recommended_capa", ""),
+            "referenced_sop": entry.get("referenced_sop", ""),
+            "capa_status": entry.get("capa_status", "Open"),
+            "operator_id": entry.get("operator_id", "unknown"),
+        }
+
+        response = client.table("deviation_logs").insert(payload).execute()
+        if response.data:
+            new_id = response.data[0]["id"]
+            write_audit_entry(entry.get("operator_id", "unknown"), "INSERT", "deviation_logs", new_id, f"Deviation logged: {entry.get('parameter')}")
+            _clear_streamlit_cache()
+            return new_id
+        return None
+    except Exception as exc:
         _log_exception("insert_deviation", exc)
         return None
-    finally:
-        if connection is not None:
-            connection.close()
 
 
 @st.cache_data(ttl=60)
 def fetch_deviations(limit: int = 500, status_filter: str | None = None) -> pd.DataFrame:
     """Retrieve deviation_logs rows, optionally filtered by CAPA status."""
-    connection: sqlite3.Connection | None = None
     try:
-        connection = get_connection()
+        client = get_supabase_client()
+        query = client.table("deviation_logs").select("*")
         if status_filter:
-            df: pd.DataFrame = pd.read_sql_query(
-                "SELECT * FROM deviation_logs WHERE capa_status = ? ORDER BY id DESC LIMIT ?",
-                connection,
-                params=(status_filter, limit),
-            )
-        else:
-            df = pd.read_sql_query(
-                "SELECT * FROM deviation_logs ORDER BY id DESC LIMIT ?",
-                connection,
-                params=(limit,),
-            )
-        return df
-    except sqlite3.Error as exc:
+            query = query.eq("capa_status", status_filter)
+        response = query.order("id", desc=True).limit(limit).execute()
+        return pd.DataFrame(response.data) if response.data else pd.DataFrame()
+    except Exception as exc:
         _log_exception("fetch_deviations", exc)
         return pd.DataFrame()
-    finally:
-        if connection is not None:
-            connection.close()
 
 
 def update_capa_status(deviation_id: int, new_status: str, username: str) -> bool:
     """Update the CAPA status of a deviation record."""
-    connection: sqlite3.Connection | None = None
     try:
-        connection = get_connection()
-        connection.execute(
-            "UPDATE deviation_logs SET capa_status = ? WHERE id = ?",
-            (new_status, deviation_id),
-        )
-        connection.commit()
+        client = get_supabase_client()
+        client.table("deviation_logs").update({"capa_status": new_status}).eq("id", deviation_id).execute()
         write_audit_entry(username, "UPDATE", "deviation_logs", deviation_id, f"CAPA status changed to {new_status}")
         _clear_streamlit_cache()
         return True
-    except sqlite3.Error as exc:
+    except Exception as exc:
         _log_exception("update_capa_status", exc)
         return False
-    finally:
-        if connection is not None:
-            connection.close()
 
 
 # ---------------------------------------------------------------------------
@@ -241,41 +184,28 @@ def update_capa_status(deviation_id: int, new_status: str, username: str) -> boo
 
 def insert_ahu_detail(entry: dict[str, Any]) -> int | None:
     """Insert a detailed AHU telemetry record."""
-    connection: sqlite3.Connection | None = None
     try:
-        connection = get_connection()
-        cursor = connection.execute(
-            """
-            INSERT INTO ahu_detailed_logs (
-                facility_log_id, timestamp, unit_id, supply_temp, return_temp,
-                relative_humidity, differential_pressure, fan_speed,
-                motor_current, filter_delta_p, damper_position, operator_id
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            """,
-            (
-                entry.get("facility_log_id"),
-                entry.get("timestamp", datetime.now().isoformat(timespec="seconds")),
-                entry.get("unit_id", "AHU-01"),
-                entry.get("supply_temp"),
-                entry.get("return_temp"),
-                entry.get("relative_humidity"),
-                entry.get("differential_pressure"),
-                entry.get("fan_speed"),
-                entry.get("motor_current"),
-                entry.get("filter_delta_p"),
-                entry.get("damper_position"),
-                entry.get("operator_id", "unknown"),
-            ),
-        )
-        connection.commit()
+        client = get_supabase_client()
+        payload = {
+            "facility_log_id": entry.get("facility_log_id"),
+            "timestamp": entry.get("timestamp", datetime.now().isoformat(timespec="seconds")),
+            "unit_id": entry.get("unit_id", "AHU-01"),
+            "supply_temp": entry.get("supply_temp"),
+            "return_temp": entry.get("return_temp"),
+            "relative_humidity": entry.get("relative_humidity"),
+            "differential_pressure": entry.get("differential_pressure"),
+            "fan_speed": entry.get("fan_speed"),
+            "motor_current": entry.get("motor_current"),
+            "filter_delta_p": entry.get("filter_delta_p"),
+            "damper_position": entry.get("damper_position"),
+            "operator_id": entry.get("operator_id", "unknown"),
+        }
+        response = client.table("ahu_detailed_logs").insert(payload).execute()
         _clear_streamlit_cache()
-        return cursor.lastrowid
-    except sqlite3.Error as exc:
+        return response.data[0]["id"] if response.data else None
+    except Exception as exc:
         _log_exception("insert_ahu_detail", exc)
         return None
-    finally:
-        if connection is not None:
-            connection.close()
 
 
 @st.cache_data(ttl=60)
@@ -286,39 +216,26 @@ def fetch_ahu_details(limit: int = 500) -> pd.DataFrame:
 
 def insert_dhu_detail(entry: dict[str, Any]) -> int | None:
     """Insert a detailed DHU telemetry record."""
-    connection: sqlite3.Connection | None = None
     try:
-        connection = get_connection()
-        cursor = connection.execute(
-            """
-            INSERT INTO dhu_detailed_logs (
-                facility_log_id, timestamp, unit_id, relative_humidity, dpg_mmwc,
-                dew_point, air_flow_rate, desiccant_wheel_efficiency,
-                regeneration_temp, operator_id
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            """,
-            (
-                entry.get("facility_log_id"),
-                entry.get("timestamp", datetime.now().isoformat(timespec="seconds")),
-                entry.get("unit_id", "DHU-01"),
-                entry.get("relative_humidity"),
-                entry.get("dpg_mmwc"),
-                entry.get("dew_point"),
-                entry.get("air_flow_rate"),
-                entry.get("desiccant_wheel_efficiency"),
-                entry.get("regeneration_temp"),
-                entry.get("operator_id", "unknown"),
-            ),
-        )
-        connection.commit()
+        client = get_supabase_client()
+        payload = {
+            "facility_log_id": entry.get("facility_log_id"),
+            "timestamp": entry.get("timestamp", datetime.now().isoformat(timespec="seconds")),
+            "unit_id": entry.get("unit_id", "DHU-01"),
+            "relative_humidity": entry.get("relative_humidity"),
+            "dpg_mmwc": entry.get("dpg_mmwc"),
+            "dew_point": entry.get("dew_point"),
+            "air_flow_rate": entry.get("air_flow_rate"),
+            "desiccant_wheel_efficiency": entry.get("desiccant_wheel_efficiency"),
+            "regeneration_temp": entry.get("regeneration_temp"),
+            "operator_id": entry.get("operator_id", "unknown"),
+        }
+        response = client.table("dhu_detailed_logs").insert(payload).execute()
         _clear_streamlit_cache()
-        return cursor.lastrowid
-    except sqlite3.Error as exc:
+        return response.data[0]["id"] if response.data else None
+    except Exception as exc:
         _log_exception("insert_dhu_detail", exc)
         return None
-    finally:
-        if connection is not None:
-            connection.close()
 
 
 @st.cache_data(ttl=60)
@@ -329,36 +246,24 @@ def fetch_dhu_details(limit: int = 500) -> pd.DataFrame:
 
 def insert_compressor_log(entry: dict[str, Any]) -> int | None:
     """Insert an air compressor telemetry record."""
-    connection: sqlite3.Connection | None = None
     try:
-        connection = get_connection()
-        cursor = connection.execute(
-            """
-            INSERT INTO compressor_logs (
-                facility_log_id, timestamp, delivery_pressure, discharge_temp,
-                runtime_hours, oil_differential, dew_point, operator_id
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-            """,
-            (
-                entry.get("facility_log_id"),
-                entry.get("timestamp", datetime.now().isoformat(timespec="seconds")),
-                entry.get("delivery_pressure"),
-                entry.get("discharge_temp"),
-                entry.get("runtime_hours"),
-                entry.get("oil_differential"),
-                entry.get("dew_point"),
-                entry.get("operator_id", "unknown"),
-            ),
-        )
-        connection.commit()
+        client = get_supabase_client()
+        payload = {
+            "facility_log_id": entry.get("facility_log_id"),
+            "timestamp": entry.get("timestamp", datetime.now().isoformat(timespec="seconds")),
+            "delivery_pressure": entry.get("delivery_pressure"),
+            "discharge_temp": entry.get("discharge_temp"),
+            "runtime_hours": entry.get("runtime_hours"),
+            "oil_differential": entry.get("oil_differential"),
+            "dew_point": entry.get("dew_point"),
+            "operator_id": entry.get("operator_id", "unknown"),
+        }
+        response = client.table("compressor_logs").insert(payload).execute()
         _clear_streamlit_cache()
-        return cursor.lastrowid
-    except sqlite3.Error as exc:
+        return response.data[0]["id"] if response.data else None
+    except Exception as exc:
         _log_exception("insert_compressor_log", exc)
         return None
-    finally:
-        if connection is not None:
-            connection.close()
 
 
 @st.cache_data(ttl=60)
@@ -377,42 +282,40 @@ def _fetch_table(table_name: str, limit: int) -> pd.DataFrame:
     if table_name not in allowed_tables:
         return pd.DataFrame()
 
-    connection: sqlite3.Connection | None = None
     try:
-        connection = get_connection()
-        query: str = f"SELECT * FROM {table_name} ORDER BY id DESC LIMIT ?"
-        df: pd.DataFrame = pd.read_sql_query(query, connection, params=(limit,))
-        return df
-    except sqlite3.Error as exc:
+        client = get_supabase_client()
+        response = client.table(table_name).select("*").order("id", desc=True).limit(limit).execute()
+        return pd.DataFrame(response.data) if response.data else pd.DataFrame()
+    except Exception as exc:
         _log_exception(f"_fetch_table:{table_name}", exc)
         return pd.DataFrame()
-    finally:
-        if connection is not None:
-            connection.close()
 
 
 @st.cache_data(ttl=60)
 def compute_kpis() -> dict[str, Any]:
     """Compute headline KPIs for the executive dashboard."""
-    connection: sqlite3.Connection | None = None
     try:
-        connection = get_connection()
-        total_logs: int = connection.execute("SELECT COUNT(*) FROM facility_logs").fetchone()[0]
-        open_deviations: int = connection.execute(
-            "SELECT COUNT(*) FROM deviation_logs WHERE capa_status != 'Closed'"
-        ).fetchone()[0]
-        total_deviations: int = connection.execute("SELECT COUNT(*) FROM deviation_logs").fetchone()[0]
-        today_str: str = datetime.now().strftime("%Y-%m-%d")
-        today_log_count: int = connection.execute(
-            "SELECT COUNT(*) FROM facility_logs WHERE shift_date = ?", (today_str,)
-        ).fetchone()[0]
+        client = get_supabase_client()
+        
+        total_logs_res = client.table("facility_logs").select("id", count="exact").execute()
+        total_logs = total_logs_res.count if total_logs_res.count is not None else len(total_logs_res.data)
 
-        compliance_pct: float = 100.0
+        open_dev_res = client.table("deviation_logs").select("id", count="exact").neq("capa_status", "Closed").execute()
+        open_deviations = open_dev_res.count if open_dev_res.count is not None else len(open_dev_res.data)
+
+        total_dev_res = client.table("deviation_logs").select("id", count="exact").execute()
+        total_deviations = total_dev_res.count if total_dev_res.count is not None else len(total_dev_res.data)
+
+        today_str = datetime.now().strftime("%Y-%m-%d")
+        today_log_res = client.table("facility_logs").select("id", count="exact").eq("shift_date", today_str).execute()
+        today_log_count = today_log_res.count if today_log_res.count is not None else len(today_log_res.data)
+
+        compliance_pct = 100.0
         if total_logs > 0:
             compliance_pct = round(100.0 * (1 - (total_deviations / max(total_logs, 1))), 1)
             compliance_pct = max(0.0, min(100.0, compliance_pct))
 
-        equipment_health_score: float = round(max(0.0, 100.0 - (open_deviations * 7.5)), 1)
+        equipment_health_score = round(max(0.0, 100.0 - (open_deviations * 7.5)), 1)
 
         return {
             "total_logs": total_logs,
@@ -421,7 +324,7 @@ def compute_kpis() -> dict[str, Any]:
             "today_log_count": today_log_count,
             "equipment_health_score": equipment_health_score,
         }
-    except sqlite3.Error as exc:
+    except Exception as exc:
         _log_exception("compute_kpis", exc)
         return {
             "total_logs": 0,
@@ -430,9 +333,6 @@ def compute_kpis() -> dict[str, Any]:
             "today_log_count": 0,
             "equipment_health_score": 100.0,
         }
-    finally:
-        if connection is not None:
-            connection.close()
 
 
 # ---------------------------------------------------------------------------
@@ -446,7 +346,6 @@ def delete_telemetry_by_date_range(
     username: str = "Admin"
 ) -> tuple[bool, int]:
     """Deletes records across specified telemetry tables within a date range [start_date, end_date]."""
-    connection: sqlite3.Connection | None = None
     allowed_tables = {
         "facility_logs", "deviation_logs", "ahu_detailed_logs", 
         "dhu_detailed_logs", "compressor_logs", "panel_logs"
@@ -458,44 +357,29 @@ def delete_telemetry_by_date_range(
 
     total_deleted = 0
     try:
-        connection = get_connection()
+        client = get_supabase_client()
         for table in target_tables:
-            table_check = connection.execute(
-                "SELECT name FROM sqlite_master WHERE type='table' AND name=?", (table,)
-            ).fetchone()
-            if not table_check:
-                continue
-
             if table == "facility_logs":
-                cursor = connection.execute(
-                    f"DELETE FROM {table} WHERE shift_date >= ? AND shift_date <= ?",
-                    (start_date, end_date)
-                )
+                response = client.table(table).delete().gte("shift_date", start_date).lte("shift_date", end_date).execute()
             else:
-                cursor = connection.execute(
-                    f"DELETE FROM {table} WHERE date(timestamp) >= date(?) AND date(timestamp) <= date(?)",
-                    (start_date, end_date)
-                )
-            total_deleted += cursor.rowcount
+                response = client.table(table).delete().gte("timestamp", f"{start_date}T00:00:00").lte("timestamp", f"{end_date}T23:59:59").execute()
             
-        connection.commit()
-        
+            if response.data:
+                total_deleted += len(response.data)
+            
         write_audit_entry(
             username=username,
             action="DELETE_RANGE",
             table_name=", ".join(target_tables),
             record_id=0,
-            detail=f"Deleted {total_deleted} records between {start_date} and {end_date}"
+            detail=f"Deleted records between {start_date} and {end_date}"
         )
         
         _clear_streamlit_cache()
         return True, total_deleted
-    except sqlite3.Error as exc:
+    except Exception as exc:
         _log_exception("delete_telemetry_by_date_range", exc)
         return False, 0
-    finally:
-        if connection is not None:
-            connection.close()
 
 
 def delete_record_by_id(table_name: str, record_id: int, username: str = "Admin") -> bool:
@@ -507,13 +391,11 @@ def delete_record_by_id(table_name: str, record_id: int, username: str = "Admin"
     if table_name not in allowed_tables:
         return False
 
-    connection: sqlite3.Connection | None = None
     try:
-        connection = get_connection()
-        cursor = connection.execute(f"DELETE FROM {table_name} WHERE id = ?", (record_id,))
-        connection.commit()
+        client = get_supabase_client()
+        response = client.table(table_name).delete().eq("id", record_id).execute()
         
-        if cursor.rowcount > 0:
+        if response.data:
             write_audit_entry(
                 username=username,
                 action="DELETE_RECORD",
@@ -524,37 +406,24 @@ def delete_record_by_id(table_name: str, record_id: int, username: str = "Admin"
             _clear_streamlit_cache()
             return True
         return False
-    except sqlite3.Error as exc:
+    except Exception as exc:
         _log_exception("delete_record_by_id", exc)
         return False
-    finally:
-        if connection is not None:
-            connection.close()
 
 
 def reset_all_telemetry_data(username: str = "Admin") -> bool:
     """Wipes all telemetry data from the database (Development/Admin use)."""
-    connection: sqlite3.Connection | None = None
     try:
-        connection = get_connection()
+        client = get_supabase_client()
         tables = [
             "facility_logs", "deviation_logs", "ahu_detailed_logs", 
             "dhu_detailed_logs", "compressor_logs", "panel_logs", "audit_trail"
         ]
         
         for table in tables:
-            connection.execute(f"DELETE FROM {table}")
+            # Supabase delete requires a filter condition, so we match id greater than 0
+            client.table(table).delete().gt("id", 0).execute()
             
-        connection.commit()
-        
-        try:
-            connection.isolation_level = None
-            connection.execute("VACUUM")
-        except sqlite3.Error:
-            pass
-        finally:
-            connection.isolation_level = ""
-        
         write_audit_entry(
             username=username,
             action="FULL_RESET",
@@ -565,12 +434,9 @@ def reset_all_telemetry_data(username: str = "Admin") -> bool:
 
         _clear_streamlit_cache()
         return True
-    except sqlite3.Error as exc:
+    except Exception as exc:
         _log_exception("reset_all_telemetry_data", exc)
         return False
-    finally:
-        if connection is not None:
-            connection.close()
 
 
 def _clear_streamlit_cache() -> None:

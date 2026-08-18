@@ -17,7 +17,7 @@ if not check_auth():
     st.stop()
 
 render_logout_sidebar()
-from database.schema import DB_PATH, initialize_database
+from database.schema import initialize_database
 from database.operations import (
     fetch_audit_trail,
     reset_all_telemetry_data,
